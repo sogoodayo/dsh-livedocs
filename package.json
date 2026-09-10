@@ -23,7 +23,7 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "peerDependencies": {
-    "@deepseek-ai/dsh-tools": "*"
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1"
   }
 }
