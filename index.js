@@ -10,7 +10,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { DocsCache } from './lib/cache.js'
 import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
@@ -22,6 +22,18 @@ const pluginDir = dirname(fileURLToPath(import.meta.url))
 
 export function apply(ctx) {
   const cache = new DocsCache(join(pluginDir, 'data', 'cache'))
+
+  // Load marker: lets users verify the host actually loaded this bundle
+  // (check data/loaded.json after restarting dsh web).
+  try {
+    mkdirSync(join(pluginDir, 'data'), { recursive: true })
+    writeFileSync(
+      join(pluginDir, 'data', 'loaded.json'),
+      JSON.stringify({ loadedAt: new Date().toISOString(), pid: process.pid }),
+    )
+  } catch {
+    // never block plugin load on the marker
+  }
 
   // ---------------------------------------------------------------- docs_resolve
   ctx.tools.register(
