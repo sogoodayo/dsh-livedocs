@@ -17,6 +17,7 @@ import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
 import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
 import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
+import { prefetchDeps } from './lib/prefetch.js'
 import { LivedocsController } from './lib/remote.js'
 
 export const name = 'dsh-livedocs'
@@ -348,24 +349,20 @@ export function apply(ctx) {
       try {
         const root = findProjectRoot(cwd)
         const cfg = configFor(root ?? cwd)
-        const deps = root ? listProjectDeps(root, 8) : []
-        sectionCache.set(cwd, { text: cfg.injectDeps ? formatDepsBlock(deps) : '', at: Date.now() })
+        // Wide pool: the injection block shows the first 8, but prefetch
+        // walks further so failures and low-value deps don't waste the quota.
+        const deps = root ? listProjectDeps(root, 30) : []
+        sectionCache.set(cwd, { text: cfg.injectDeps ? formatDepsBlock(deps.slice(0, 8)) : '', at: Date.now() })
 
-        // Prefetch docs for the top N deps — opportunistic, never surfaces errors
+        // Prefetch docs until N deps are warm — opportunistic, never surfaces errors
         if (!cfg.prefetch) return
-        for (const dep of deps.slice(0, Math.max(0, cfg.prefetchTopN ?? 3))) {
-          try {
-            const resolved = await resolveLibrary(dep.name)
-            if (!resolved) continue
-            const version = dep.version ?? resolved.version
-            const key = `${dep.name}@${version ?? 'latest'}|${resolved.sources[0]?.url ?? ''}`
-            if (cache.get(key)) continue
-            const fetched = await fetchDocs(resolved, { version })
-            if (fetched) cache.set(key, fetched.content)
-          } catch {
-            // best-effort
-          }
-        }
+        await prefetchDeps(deps, Math.max(0, cfg.prefetchTopN ?? 3), {
+          resolveLibrary: (name) => resolveLibrary(name, { customDocs: cfg.customDocs }),
+          fetchDocs,
+          cache,
+          cacheKey: (resolved, version) =>
+            `${resolved.name}@${version ?? 'latest'}|${resolved.sources[0]?.url ?? ''}`,
+        })
       } catch {
         // scanning is best-effort
       } finally {
