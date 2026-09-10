@@ -18,6 +18,7 @@ import { detectInstalledVersion } from './lib/lockfile.js'
 import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
 import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
 import { prefetchDeps } from './lib/prefetch.js'
+import { rankDeps } from './lib/registry.js'
 import { LivedocsController } from './lib/remote.js'
 
 export const name = 'dsh-livedocs'
@@ -28,7 +29,11 @@ const pluginDir = dirname(fileURLToPath(import.meta.url))
 const DAY_MS = 24 * 3600 * 1000
 
 export function apply(ctx) {
-  const cache = new DocsCache(join(pluginDir, 'data', 'cache'))
+  // Cache lives in the DSH user home, not the plugin directory: the plugin
+  // dir may be read-only or wiped on upgrade when installed via npm, and one
+  // shared cache serves every profile and project.
+  const cacheHome = join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'livedocs')
+  const cache = new DocsCache(join(cacheHome, 'cache'))
 
   // Global settings (设置 → 插件 → 插件配置) with per-project override.
   // When the settings service is absent the provider serves schema defaults.
@@ -186,6 +191,7 @@ export function apply(ctx) {
     '- Never rely on training data for framework APIs (Next.js, React, Vue, etc.) — pull docs first, then code.',
     '- Pass `projectDir` (this project root) so the installed version is pinned automatically.',
     '- Use `topic` to narrow results and keep the default token budget unless more context is truly needed.',
+    '- When a build/lint/test/runtime error points to a library API (unknown export, wrong signature, deprecated option), call `docs_query` for that library BEFORE attempting a fix — the API may have changed.',
     RULE_END,
   ].join('\n')
 
@@ -351,7 +357,7 @@ export function apply(ctx) {
         const cfg = configFor(root ?? cwd)
         // Wide pool: the injection block shows the first 8, but prefetch
         // walks further so failures and low-value deps don't waste the quota.
-        const deps = root ? listProjectDeps(root, 30) : []
+        const deps = root ? rankDeps(listProjectDeps(root, 30)) : []
         sectionCache.set(cwd, { text: cfg.injectDeps ? formatDepsBlock(deps.slice(0, 8)) : '', at: Date.now() })
 
         // Prefetch docs until N deps are warm — opportunistic, never surfaces errors
