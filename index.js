@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { DocsCache } from './lib/cache.js'
 import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
+import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
 
 export const name = 'dsh-livedocs'
 export const inject = ['tools']
@@ -276,6 +277,63 @@ export function apply(ctx) {
         },
       })
     }, 'dsh-livedocs command lifecycle')
+  })
+
+  // ------------------------------------------- deps context + docs prefetch
+  // Inject a compact "installed dependencies" block into the system prompt so
+  // the model can see project deps (with real versions) from the first turn,
+  // and warm the docs cache for the top deps in the background.
+  // Optional integration: ctx.inject() waits for the systemPrompt service and
+  // silently skips on profiles without it — never a hard dependency.
+  const sectionCache = new Map() // cwd → { text, at }
+  const scanning = new Set()
+  const SCAN_TTL_MS = 5 * 60 * 1000
+
+  const scheduleScan = (cwd) => {
+    if (scanning.has(cwd)) return
+    scanning.add(cwd)
+    void (async () => {
+      try {
+        const root = findProjectRoot(cwd)
+        const deps = root ? listProjectDeps(root, 8) : []
+        sectionCache.set(cwd, { text: formatDepsBlock(deps), at: Date.now() })
+
+        // Prefetch docs for the top 3 deps — opportunistic, never surfaces errors
+        for (const dep of deps.slice(0, 3)) {
+          try {
+            const resolved = await resolveLibrary(dep.name)
+            if (!resolved) continue
+            const version = dep.version ?? resolved.version
+            const key = `${dep.name}@${version ?? 'latest'}|${resolved.sources[0]?.url ?? ''}`
+            if (cache.get(key)) continue
+            const fetched = await fetchDocs(resolved, { version })
+            if (fetched) cache.set(key, fetched.content)
+          } catch {
+            // best-effort
+          }
+        }
+      } catch {
+        // scanning is best-effort
+      } finally {
+        scanning.delete(cwd)
+      }
+    })()
+  }
+
+  ctx.inject(['systemPrompt'], (c) => {
+    c.systemPrompt.section({
+      name: 'dsh-livedocs:deps',
+      order: -40,
+      text: (assemble) => {
+        const cwd = assemble?.agent?.session?.header?.cwd
+        if (typeof cwd !== 'string' || !cwd) return ''
+        const cached = sectionCache.get(cwd)
+        if (!cached || Date.now() - cached.at > SCAN_TTL_MS) {
+          scheduleScan(cwd) // fire-and-forget; the next assembly picks it up
+        }
+        return cached?.text ?? ''
+      },
+    })
   })
 
   ctx.logger?.info?.('dsh-livedocs loaded: docs_resolve / docs_query / docs_cache / docs_setup registered')

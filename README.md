@@ -67,8 +67,9 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M1：三工具 + 多源降级 + 缓存
 - [x] M2：读项目 node_modules / lockfile 自动钉版本；`docs_setup` 规则幂等注入 AGENTS.md
 - [x] M2.5：`/docs` 斜杠命令；全局规则；版本不一致警告；topic 零命中回退
+- [x] M2.6：依赖上下文注入（每会话自动向模型展示项目依赖及安装版本）+ Top 3 依赖文档后台预热
 - [ ] M3：设置页（缓存 TTL、token 预算、可选 Context7 后端 Key）；嵌入式 skill 自动触发
-- [ ] M4：项目打开时后台预热 Top N 依赖文档
+- [ ] M4：预热数量与开关配置化
 
 ## 兼容性
 
