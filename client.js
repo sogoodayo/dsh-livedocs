@@ -98,6 +98,26 @@ window.__ModuleLoader__.load({
         border: '0.5px solid var(--dsw-alias-border-l3, #ccc)',
         background: 'var(--dsw-alias-bg-primary, transparent)', color: 'inherit',
       },
+      scrollList: {
+        maxHeight: 260, overflowY: 'auto',
+        border: '0.5px solid var(--dsw-alias-border-l2, #eee)', borderRadius: 8, padding: '0 10px',
+      },
+      overlay: {
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0, 0, 0, 0.35)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      },
+      dialog: {
+        width: 320, borderRadius: 12, padding: '16px 18px',
+        background: 'var(--dsw-alias-bg-primary, #fff)',
+        color: 'var(--dsw-alias-label-primary, inherit)',
+        border: '0.5px solid var(--dsw-alias-border-l2, #e2e2e2)',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.18)',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      },
+      dialogTitle: { fontSize: 14, fontWeight: 600 },
+      dialogBody: { fontSize: 12, color: 'var(--dsw-alias-label-secondary, #888)', wordBreak: 'break-all' },
+      dialogActions: { display: 'flex', justifyContent: 'flex-end', gap: 8 },
     }
 
     const fmtBytes = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n > 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`)
@@ -152,6 +172,34 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // ------------------------------------------------------- confirm dialog
+    // Lightweight modal for destructive actions (删除/清空). Cancel via the
+    // 取消 button, the backdrop, or Esc.
+    function ConfirmDialog(props) {
+      const onKeyDown = (e) => { if (e.key === 'Escape') props.onCancel() }
+      return h('div', {
+        style: css.overlay,
+        role: 'presentation',
+        tabIndex: -1,
+        onClick: (e) => { if (e.target === e.currentTarget) props.onCancel() },
+        onKeyDown,
+        ref: (el) => el && el.focus(),
+      },
+        h('div', { style: css.dialog, role: 'alertdialog', 'aria-modal': 'true' },
+          h('div', { style: css.dialogTitle }, props.title),
+          h('div', { style: css.dialogBody }, props.body),
+          h('div', { style: css.dialogActions },
+            h('button', { type: 'button', style: css.button, onClick: props.onCancel }, '取消'),
+            h('button', {
+              type: 'button',
+              style: { ...css.button, ...css.danger },
+              onClick: props.onConfirm,
+            }, props.confirmLabel ?? '确认删除'),
+          ),
+        ),
+      )
+    }
+
     // ---------------------------------------------------------- custom docs
     function CustomDocs(props) {
       const [name, setName] = useState('')
@@ -179,7 +227,11 @@ window.__ModuleLoader__.load({
             ),
             h('button', {
               type: 'button', style: { ...css.button, ...css.danger },
-              onClick: () => props.onChange(docs.filter((d) => d.name !== doc.name)),
+              onClick: () => props.confirm(
+                '删除自定义文档源',
+                `确定删除 ${doc.name} 的文档源吗？`,
+                () => props.onChange(docs.filter((d) => d.name !== doc.name)),
+              ),
             }, '移除'),
           ),
         ),
@@ -193,8 +245,11 @@ window.__ModuleLoader__.load({
     }
 
     // ----------------------------------------------------------- cache panel
+    const PAGE = 20 // batch size for incremental rendering
     function CachePanel(props) {
       const [state, setState] = useState({ phase: 'idle', entries: [], totalBytes: 0, error: null })
+      const [filter, setFilter] = useState('')
+      const [shown, setShown] = useState(PAGE)
       const load = async () => {
         if (!props.remoteApi.ready()) {
           setState({ phase: 'error', entries: [], totalBytes: 0, error: '远程服务不可用（请确认插件已加载并重启 dsh web）' })
@@ -204,24 +259,42 @@ window.__ModuleLoader__.load({
         try {
           const result = await props.remoteApi.list()
           setState({ phase: 'ready', entries: result?.entries ?? [], totalBytes: result?.totalBytes ?? 0, error: null })
+          setShown(PAGE)
         } catch (err) {
           setState({ phase: 'error', entries: [], totalBytes: 0, error: String(err?.message ?? err) })
         }
       }
-      const remove = async (key) => {
-        try {
-          await props.remoteApi.remove(key)
-        } finally {
-          await load()
-        }
+      const remove = (entry) => {
+        props.confirm(
+          '移除缓存文档',
+          `确定移除 ${entry.library}@${entry.version} 的缓存吗？下次查询会重新拉取。`,
+          async () => {
+            try {
+              await props.remoteApi.remove(entry.key)
+            } finally {
+              await load()
+            }
+          },
+        )
       }
-      const clear = async () => {
-        try {
-          await props.remoteApi.clear()
-        } finally {
-          await load()
-        }
+      const clear = () => {
+        props.confirm(
+          '清空全部缓存',
+          `确定清空全部 ${state.entries.length} 条缓存吗？下次查询会重新拉取。`,
+          async () => {
+            try {
+              await props.remoteApi.clear()
+            } finally {
+              await load()
+            }
+          },
+        )
       }
+      const keyword = filter.trim().toLowerCase()
+      const visible = keyword
+        ? state.entries.filter((e) => `${e.library}@${e.version}`.toLowerCase().includes(keyword))
+        : state.entries
+      const batch = visible.slice(0, shown)
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         h('div', { style: css.row },
           h('span', { style: css.sectionTitle }, '已缓存文档'),
@@ -237,22 +310,40 @@ window.__ModuleLoader__.load({
         state.phase === 'ready'
           ? state.entries.length === 0
             ? h('span', { style: css.note }, '缓存为空。')
-            : h('div', null,
-              h('span', { style: css.note }, `${state.entries.length} 条，共 ${fmtBytes(state.totalBytes)}`),
-              state.entries.map((entry) =>
-                h('div', { key: entry.key, style: css.docRow },
-                  h('div', { style: css.grow },
-                    h('div', { style: css.docName },
-                      `${entry.library}@${entry.version}`,
-                      entry.stale ? h('span', { style: { ...css.docMeta, marginLeft: 6 } }, '(已过期)') : null,
-                    ),
-                    h('div', { style: css.docMeta },
-                      `${fmtBytes(entry.size)} · 缓存于 ${fmtTime(entry.fetchedAt)} · ${entry.sourceUrl}`,
-                    ),
-                  ),
-                  h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: () => remove(entry.key) }, '移除'),
-                ),
+            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              h('div', { style: css.row },
+                h('span', { style: css.note },
+                  keyword ? `命中 ${visible.length} / ${state.entries.length} 条` : `${state.entries.length} 条，共 ${fmtBytes(state.totalBytes)}`),
+                h('input', {
+                  style: { ...css.textInput, flex: '0 1 180px' },
+                  placeholder: '按包名过滤…',
+                  value: filter,
+                  onChange: (e) => { setFilter(e.target.value); setShown(PAGE) },
+                }),
               ),
+              h('div', { style: css.scrollList },
+                batch.map((entry) =>
+                  h('div', { key: entry.key, style: css.docRow },
+                    h('div', { style: css.grow },
+                      h('div', { style: css.docName },
+                        `${entry.library}@${entry.version}`,
+                        entry.stale ? h('span', { style: { ...css.docMeta, marginLeft: 6 } }, '(已过期)') : null,
+                      ),
+                      h('div', { style: css.docMeta },
+                        `${fmtBytes(entry.size)} · 缓存于 ${fmtTime(entry.fetchedAt)} · ${entry.sourceUrl}`,
+                      ),
+                    ),
+                    h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: () => remove(entry) }, '移除'),
+                  ),
+                ),
+                batch.length === 0 ? h('div', { style: { ...css.note, padding: '8px 0' } }, '没有匹配的条目。') : null,
+              ),
+              visible.length > batch.length
+                ? h('button', {
+                  type: 'button', style: css.button,
+                  onClick: () => setShown(shown + PAGE),
+                }, `显示更多（还有 ${visible.length - batch.length} 条）`)
+                : null,
             )
           : null,
       )
@@ -267,6 +358,7 @@ window.__ModuleLoader__.load({
         () => scope.getSnapshot(),
       )
       const [error, setError] = useState(null)
+      const [confirm, setConfirm] = useState(null) // { title, body, action } | null
 
       if (snap.status === 'unavailable') {
         return null // 本部署未组装该插件——不留痕迹（与官方卡片语义一致）
@@ -276,6 +368,15 @@ window.__ModuleLoader__.load({
       const set = (field, next) => {
         setError(null)
         Promise.resolve(scope.set(field, next)).catch((err) => setError(String(err?.message ?? err)))
+      }
+      // Destructive actions must pass through the confirm dialog.
+      const askConfirm = (title, body, action) => setConfirm({ title, body, action })
+      const runConfirm = () => {
+        const pending = confirm
+        setConfirm(null)
+        Promise.resolve()
+          .then(() => pending.action())
+          .catch((err) => setError(String(err?.message ?? err)))
       }
 
       return h('li', { style: css.card },
@@ -316,14 +417,28 @@ window.__ModuleLoader__.load({
               value: value.cacheTtlDays ?? 7, min: 1, max: 90, disabled: !writable,
               onChange: (v) => set('cacheTtlDays', v),
             }),
+            h(NumberField, {
+              label: '缓存上限（条）', hint: '超出后按最久未使用自动淘汰（1–1000）',
+              value: value.cacheMaxEntries ?? 200, min: 1, max: 1000, disabled: !writable,
+              onChange: (v) => set('cacheMaxEntries', v),
+            }),
             h(CustomDocs, {
               value: value.customDocs,
               onChange: (v) => set('customDocs', v),
+              confirm: askConfirm,
             }),
-            h(CachePanel, { remoteApi }),
+            h(CachePanel, { remoteApi, confirm: askConfirm }),
             h('span', { style: css.note },
               '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置）。'),
           )
+          : null,
+        confirm
+          ? h(ConfirmDialog, {
+            title: confirm.title,
+            body: confirm.body,
+            onCancel: () => setConfirm(null),
+            onConfirm: runConfirm,
+          })
           : null,
       )
     }

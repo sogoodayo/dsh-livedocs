@@ -38,6 +38,7 @@ export function apply(ctx) {
   // Live cache TTL: the settings card edits take effect without a restart.
   const applyTtl = (cfg) => {
     cache.ttlMs = Math.max(1, cfg.cacheTtlDays ?? 7) * DAY_MS
+    cache.maxEntries = Math.max(1, cfg.cacheMaxEntries ?? 200)
   }
   applyTtl(globalConfig())
   configProvider.watch(applyTtl)
