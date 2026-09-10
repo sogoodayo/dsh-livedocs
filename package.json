@@ -4,8 +4,14 @@
   "description": "Version-pinned live library docs for DeepSeek Harness — kill hallucinated APIs.",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
   "files": [
     "index.js",
+    "client.js",
     "lib",
     "cordis.patch.yml",
     "README.md"
@@ -21,6 +27,13 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
     }
   },
   "dependencies": {

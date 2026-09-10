@@ -16,14 +16,42 @@ import { DocsCache } from './lib/cache.js'
 import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
 import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
+import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
+import { LivedocsController } from './lib/remote.js'
 
 export const name = 'dsh-livedocs'
 export const inject = ['tools']
 
 const pluginDir = dirname(fileURLToPath(import.meta.url))
 
+const DAY_MS = 24 * 3600 * 1000
+
 export function apply(ctx) {
   const cache = new DocsCache(join(pluginDir, 'data', 'cache'))
+
+  // Global settings (设置 → 插件 → 插件配置) with per-project override.
+  // When the settings service is absent the provider serves schema defaults.
+  const configProvider = createConfigProvider(ctx)
+  const globalConfig = () => configProvider.get()
+  const configFor = (projectDir) => resolveProjectConfig(configProvider.get(), projectDir).config
+
+  // Live cache TTL: the settings card edits take effect without a restart.
+  const applyTtl = (cfg) => {
+    cache.ttlMs = Math.max(1, cfg.cacheTtlDays ?? 7) * DAY_MS
+  }
+  applyTtl(globalConfig())
+  configProvider.watch(applyTtl)
+
+  // Remote endpoints for the settings card (cache management over the wire).
+  // SRC-mode discovery: the gateway reflects on this live service — safe even
+  // without the typert code generator. If the web API stack is absent the
+  // service simply has no callers.
+  try {
+    // eslint-disable-next-line no-new
+    new LivedocsController(ctx, { cache })
+  } catch (err) {
+    ctx.logger?.warn?.(`dsh-livedocs: remote service unavailable: ${err?.message ?? err}`)
+  }
 
   // Load marker: lets users verify the host actually loaded this bundle
   // (check data/loaded.json after restarting dsh web).
@@ -61,15 +89,20 @@ export function apply(ctx) {
         render: (_args, value) => [
           {
             type: 'text',
-            text: value.found
-              ? `Resolved "${value.name}" (latest: ${value.version ?? 'unknown'}).\n` +
-                `Sources:\n${value.sources.map((s) => `- [${s.type}] ${s.url}`).join('\n')}`
-              : `Could not resolve "${value.name}". Try the exact npm package name.`,
+            text: value.disabled
+              ? 'dsh-livedocs is disabled (设置 → 插件 → 插件配置 → livedocs).'
+              : value.found
+                ? `Resolved "${value.name}" (latest: ${value.version ?? 'unknown'}).\n` +
+                  `Sources:\n${value.sources.map((s) => `- [${s.type}] ${s.url}`).join('\n')}`
+                : `Could not resolve "${value.name}". Try the exact npm package name.`,
           },
         ],
       },
       async execute(args) {
-        const resolved = await resolveLibrary(args.libraryName)
+        if (!globalConfig().enabled) {
+          return { found: false, name: args.libraryName, disabled: true }
+        }
+        const resolved = await resolveLibrary(args.libraryName, { customDocs: globalConfig().customDocs })
         if (!resolved) return { found: false, name: args.libraryName }
         return { found: true, ...resolved }
       },
@@ -122,7 +155,21 @@ export function apply(ctx) {
         },
         render: (_args, value) => [{ type: 'text', text: formatDocsText(value) }],
       },
-      execute: (args) => runDocsQuery(cache, args),
+      execute: (args) => {
+        const cfg = configFor(args.projectDir ?? process.cwd())
+        if (!cfg.enabled) {
+          return {
+            library: args.library,
+            version: null,
+            text: 'dsh-livedocs is disabled (设置 → 插件 → 插件配置 → livedocs).',
+            sourceType: null,
+            stale: false,
+            chunksTotal: 0,
+            chunksUsed: 0,
+          }
+        }
+        return runDocsQuery(cache, args, cfg)
+      },
     }),
   )
 
@@ -263,12 +310,16 @@ export function apply(ctx) {
           const [library, ...rest] = input.split(/\s+/)
           const topic = rest.join(' ')
           try {
+            const cfg = configFor(process.cwd())
+            if (!cfg.enabled) {
+              return { kind: 'error', text: 'dsh-livedocs is disabled (设置 → 插件 → 插件配置 → livedocs).' }
+            }
             const value = await runDocsQuery(cache, {
               library,
               topic,
               tokens: 2000,
               projectDir: process.cwd(),
-            })
+            }, cfg)
             if (!value.sourceType) return { kind: 'error', text: value.text }
             return { kind: 'success', text: formatDocsText(value) }
           } catch (err) {
@@ -295,11 +346,13 @@ export function apply(ctx) {
     void (async () => {
       try {
         const root = findProjectRoot(cwd)
+        const cfg = configFor(root ?? cwd)
         const deps = root ? listProjectDeps(root, 8) : []
-        sectionCache.set(cwd, { text: formatDepsBlock(deps), at: Date.now() })
+        sectionCache.set(cwd, { text: cfg.injectDeps ? formatDepsBlock(deps) : '', at: Date.now() })
 
-        // Prefetch docs for the top 3 deps — opportunistic, never surfaces errors
-        for (const dep of deps.slice(0, 3)) {
+        // Prefetch docs for the top N deps — opportunistic, never surfaces errors
+        if (!cfg.prefetch) return
+        for (const dep of deps.slice(0, Math.max(0, cfg.prefetchTopN ?? 3))) {
           try {
             const resolved = await resolveLibrary(dep.name)
             if (!resolved) continue
@@ -327,6 +380,7 @@ export function apply(ctx) {
       text: (assemble) => {
         const cwd = assemble?.agent?.session?.header?.cwd
         if (typeof cwd !== 'string' || !cwd) return ''
+        if (!globalConfig().enabled) return ''
         const cached = sectionCache.get(cwd)
         if (!cached || Date.now() - cached.at > SCAN_TTL_MS) {
           scheduleScan(cwd) // fire-and-forget; the next assembly picks it up
@@ -344,10 +398,12 @@ export function apply(ctx) {
 /**
  * Shared docs pipeline used by both the docs_query tool and the /docs command.
  * @param {import('./lib/cache.js').DocsCache} cache
+ * @param {object} [config] - resolved plugin config (defaults when omitted).
  */
-async function runDocsQuery(cache, args) {
+async function runDocsQuery(cache, args, config = null) {
   const tokens = args.tokens ?? 4000
-  const resolved = await resolveLibrary(args.library)
+  const customDocs = config?.customDocs ?? []
+  const resolved = await resolveLibrary(args.library, { customDocs })
   if (!resolved) {
     return {
       library: args.library,

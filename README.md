@@ -68,8 +68,8 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M2：读项目 node_modules / lockfile 自动钉版本；`docs_setup` 规则幂等注入 AGENTS.md
 - [x] M2.5：`/docs` 斜杠命令；全局规则；版本不一致警告；topic 零命中回退
 - [x] M2.6：依赖上下文注入（每会话自动向模型展示项目依赖及安装版本）+ Top 3 依赖文档后台预热
-- [ ] M3：设置页（缓存 TTL、token 预算、可选 Context7 后端 Key）；嵌入式 skill 自动触发
-- [ ] M4：预热数量与开关配置化
+- [x] M3：设置卡片（设置 → 插件 → 插件配置 → Live Docs）：总开关、注入/预热开关、预热 Top N、缓存 TTL、自定义文档源（customDocs）、缓存列表查看/移除/清空；项目级 `.dsh-livedocs.json` 覆盖
+- [ ] M4：可选 Context7 后端 Key；嵌入式 skill 自动触发
 
 ## 兼容性
 
