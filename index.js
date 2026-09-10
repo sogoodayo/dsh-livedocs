@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { DocsCache } from './lib/cache.js'
 import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
+import { fetchDocsViaContext7 } from './lib/context7.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
 import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
 import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
@@ -433,11 +434,25 @@ async function runDocsQuery(cache, args, config = null) {
 
   let fetched = null
   let stale = false
+  let context7Error = null
   const hit = cache.get(cacheKey)
   if (hit) {
     fetched = { content: hit.content, sourceType: 'cache', sourceUrl: cacheKey }
   } else {
     fetched = await fetchDocs(resolved, { version })
+    if (!fetched && config?.context7Key?.trim()) {
+      // Last-resort cloud index: covers libraries that publish no llms.txt
+      // and have a thin README. Failures are reported, not swallowed.
+      try {
+        fetched = await fetchDocsViaContext7(args.library, {
+          apiKey: config.context7Key,
+          topic: args.topic ?? '',
+          version,
+        })
+      } catch (err) {
+        context7Error = err
+      }
+    }
     if (fetched) {
       cache.set(cacheKey, fetched.content)
     } else {
@@ -454,7 +469,13 @@ async function runDocsQuery(cache, args, config = null) {
     return {
       library: resolved.name,
       version,
-      text: 'No documentation source responded. The library may not publish llms.txt or a README.',
+      text:
+        'No documentation source responded. The library may not publish llms.txt or a README.' +
+        (context7Error
+          ? ` Context7 fallback failed (${context7Error.status || 'network'}: ${context7Error.message}).`
+          : config?.context7Key?.trim()
+            ? ' Context7 fallback found no matching library.'
+            : ''),
       sourceType: null,
       stale: false,
       chunksTotal: 0,
@@ -472,14 +493,17 @@ async function runDocsQuery(cache, args, config = null) {
   }
 
   // Honesty check: llms.txt sources always serve the LATEST docs. If the
-  // resolved version is older, say so explicitly in the header.
+  // resolved version is older, say so explicitly in the header. Same for the
+  // Context7 fallback when its pinned-version fetch fell back to unpinned.
   const versionWarning =
     version &&
     resolved.version &&
     version !== resolved.version &&
     (fetched.sourceType ?? '').startsWith('llms')
       ? `WARNING: project uses ${version}, but this docs source serves the latest release (${resolved.version}). Verify APIs against ${version} before use.`
-      : null
+      : version && fetched.sourceType === 'context7' && fetched.pinned === false
+        ? `WARNING: Context7 has no docs pinned to ${version}; serving its latest indexed docs. Verify APIs against ${version} before use.`
+        : null
 
   return {
     library: resolved.name,

@@ -48,6 +48,7 @@ dsh plugin --profile web add github:your-account/dsh-livedocs
 库名 → npm registry 元数据（版本 / 仓库 / 文档站）
      → 版本钉选：显式 version > node_modules / lockfile 实测 > 最新 release
      → 拉取链：llms-full.txt → llms.txt → GitHub README（按 tag 钉版本）
+     → 可选兜底：配置 Context7 API Key 后，长尾库回退到 Context7 云端索引（支持版本钉定，401/429 显式报错）
      → 版本不一致时输出显式警告（llms.txt 永远是最新版的文档）
      → Markdown 按标题分块 → topic 打分（零命中自动回退概览）→ token 预算内裁剪
      → JSON 文件 LRU 缓存（断网时返回过期缓存并标注 stale）
@@ -70,7 +71,8 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M2.6：依赖上下文注入（每会话自动向模型展示项目依赖及安装版本）+ Top 3 依赖文档后台预热
 - [x] M3：设置卡片（设置 → 插件 → 插件配置 → Live Docs）：总开关、注入/预热开关、预热 Top N、缓存 TTL 与上限、自定义文档源（customDocs）、缓存列表查看/移除/清空；项目级 `.dsh-livedocs.json` 覆盖
 - [x] M3.7：策展注册表（50+ 主流库，verified llms.txt 源直连）+ 预热拉满 N 个（失败不占名额，注册表命中插队）+ 出错后查文档规则；缓存迁至 `~/.dsh/livedocs/`（跨 profile 共享，插件升级不清零）
-- [ ] M4：可选 Context7 后端 Key；嵌入式 skill 自动触发
+- [x] M4：可选 Context7 云端索引兜底（设置卡片填 Key 即启用，默认关闭；版本钉定 + 401/429 显式报错；Key 仅全局设置，项目文件不可覆盖）
+- [ ] M5：嵌入式 skill 自动触发
 
 ## 兼容性
 

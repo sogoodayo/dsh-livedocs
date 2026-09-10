@@ -172,6 +172,37 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // Masked credential input; commits on blur/Enter, empty string disables.
+    function KeyField(props) {
+      const [draft, setDraft] = useState(props.value ?? '')
+      const [editing, setEditing] = useState(false)
+      const shown = editing ? draft : (props.value ?? '')
+      const commit = () => {
+        setEditing(false)
+        const next = draft.trim()
+        if (next !== (props.value ?? '')) props.onChange(next)
+      }
+      return h('div', { style: css.row },
+        h('div', { style: css.label },
+          h('span', null, props.label),
+          props.hint ? h('span', { style: css.labelHint }, props.hint) : null,
+        ),
+        h('input', {
+          style: { ...css.textInput, flex: 'none', width: 200 },
+          type: 'password',
+          placeholder: 'ctx7sk…',
+          value: shown,
+          disabled: props.disabled,
+          autoComplete: 'off',
+          spellCheck: false,
+          onFocus: () => { setDraft(props.value ?? ''); setEditing(true) },
+          onChange: (e) => setDraft(e.target.value),
+          onBlur: commit,
+          onKeyDown: (e) => { if (e.key === 'Enter') e.target.blur() },
+        }),
+      )
+    }
+
     // ------------------------------------------------------- confirm dialog
     // Lightweight modal for destructive actions (删除/清空). Cancel via the
     // 取消 button, the backdrop, or Esc.
@@ -422,6 +453,14 @@ window.__ModuleLoader__.load({
               value: value.cacheMaxEntries ?? 200, min: 1, max: 1000, disabled: !writable,
               onChange: (v) => set('cacheMaxEntries', v),
             }),
+            h(KeyField, {
+              label: 'Context7 API Key（可选兜底源）',
+              hint: value.context7Key?.trim()
+                ? '已配置：无 llms.txt/README 覆盖的库将回退到 Context7 云端索引'
+                : '留空关闭；在 context7.com/dashboard 免费申请（ctx7sk 开头）',
+              value: value.context7Key ?? '', disabled: !writable,
+              onChange: (v) => set('context7Key', v),
+            }),
             h(CustomDocs, {
               value: value.customDocs,
               onChange: (v) => set('customDocs', v),
@@ -429,7 +468,7 @@ window.__ModuleLoader__.load({
             }),
             h(CachePanel, { remoteApi, confirm: askConfirm }),
             h('span', { style: css.note },
-              '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置）。'),
+              '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置；API Key 属凭据，仅支持全局设置，不接受项目级覆盖）。'),
           )
           : null,
         confirm
