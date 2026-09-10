@@ -122,6 +122,10 @@ export function apply(ctx) {
               `--- BEGIN LIBRARY DOCS (${value.library}@${value.version ?? 'latest'}, ` +
               `version from: ${value.versionSource ?? 'unknown'}, ` +
               `source: ${value.sourceType ?? 'none'}${value.stale ? ', STALE CACHE' : ''}) ---\n` +
+              (value.versionWarning ? `${value.versionWarning}\n` : '') +
+              (value.topicFallback
+                ? 'NOTE: no section matched the topic; returning an overview instead.\n'
+                : '') +
               `${value.text}\n--- END LIBRARY DOCS ---\n` +
               `(${value.chunksUsed}/${value.chunksTotal} sections within token budget)`,
           },
@@ -182,14 +186,36 @@ export function apply(ctx) {
           }
         }
 
-        const selected = selectChunks(fetched.content, { topic: args.topic ?? '', tokens })
+        let selected = selectChunks(fetched.content, { topic: args.topic ?? '', tokens })
+        let topicFallback = false
+        if (selected.chunksUsed === 0 && args.topic) {
+          // No section matched the topic — fall back to an overview within budget
+          // instead of returning nothing.
+          selected = selectChunks(fetched.content, { topic: '', tokens })
+          topicFallback = true
+        }
+
+        // Honesty check: llms.txt sources always serve the LATEST docs. If the
+        // resolved version is older, say so explicitly in the header.
+        const versionWarning =
+          version &&
+          resolved.version &&
+          version !== resolved.version &&
+          (fetched.sourceType ?? '').startsWith('llms')
+            ? `WARNING: project uses ${version}, but this docs source serves the latest release (${resolved.version}). Verify APIs against ${version} before use.`
+            : null
+
         return {
           library: resolved.name,
           version,
           versionSource,
-          text: selected.text || 'Docs were fetched but no section matched the topic within budget.',
+          text:
+            selected.text ||
+            'Docs were fetched but nothing fit the token budget. Try a larger `tokens` value.',
           sourceType: fetched.sourceType,
           stale,
+          versionWarning,
+          topicFallback,
           chunksTotal: selected.chunksTotal,
           chunksUsed: selected.chunksUsed,
         }
