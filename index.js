@@ -20,6 +20,7 @@ import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project
 import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
 import { prefetchDeps } from './lib/prefetch.js'
 import { rankDeps } from './lib/registry.js'
+import { createSkillRegistration } from './lib/skill.js'
 import { LivedocsController } from './lib/remote.js'
 
 export const name = 'dsh-livedocs'
@@ -49,6 +50,33 @@ export function apply(ctx) {
   }
   applyTtl(globalConfig())
   configProvider.watch(applyTtl)
+
+  // ----------------------------------------------------- embedded skill (M5)
+  // Register the livedocs skill into the host's skill registry so the agent
+  // auto-loads usage rules when it works with third-party libraries — no
+  // docs_setup run required. Optional integration like systemPrompt/commands:
+  // profiles without the skill service simply skip. Reacts live to the
+  // master switch and the `skill` toggle.
+  ctx.inject(['skills'], (c) => {
+    let dispose = null
+    const sync = (cfg) => {
+      const want = cfg.enabled !== false && cfg.skill !== false
+      if (want && !dispose) {
+        try {
+          dispose = c.skills.register(createSkillRegistration())
+          ctx.logger?.info?.('dsh-livedocs: skill "livedocs" registered')
+        } catch (err) {
+          ctx.logger?.warn?.(`dsh-livedocs: skill registration failed: ${err?.message ?? err}`)
+        }
+      } else if (!want && dispose) {
+        dispose()
+        dispose = null
+      }
+    }
+    sync(globalConfig())
+    configProvider.watch(sync)
+    ctx.on('dispose', () => { dispose?.(); dispose = null })
+  })
 
   // Remote endpoints for the settings card (cache management over the wire).
   // SRC-mode discovery: the gateway reflects on this live service — safe even

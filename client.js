@@ -438,6 +438,11 @@ window.__ModuleLoader__.load({
               value: value.prefetch !== false, disabled: !writable,
               onChange: (v) => set('prefetch', v),
             }),
+            h(Toggle, {
+              label: '嵌入式技能（自动触发）', hint: '在模型的技能目录注册 livedocs 技能，写第三方库代码时自动加载使用规则',
+              value: value.skill !== false, disabled: !writable,
+              onChange: (v) => set('skill', v),
+            }),
             h(NumberField, {
               label: '预热数量 Top N', hint: '每个项目预热的依赖个数（0–10）',
               value: value.prefetchTopN ?? 3, min: 0, max: 10, disabled: !writable,

@@ -14,6 +14,8 @@ dsh plugin --profile web add github:your-account/dsh-livedocs
 
 三种方式，按无感程度排列：
 
+**0. 嵌入式技能（零配置，装好即生效）**——插件向宿主的技能注册表登记了 `livedocs` 技能：模型目录里常驻一条约 30 token 的路由描述，一旦任务涉及第三方库（写代码、修 bug、问用法），模型会自动加载完整使用规则并按规则先查文档。可在设置卡片用「嵌入式技能」开关关闭。
+
 **1. 斜杠命令（手动，最直接）**——在输入框敲 `/` 即可看到：
 
 ```
@@ -72,7 +74,7 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M3：设置卡片（设置 → 插件 → 插件配置 → Live Docs）：总开关、注入/预热开关、预热 Top N、缓存 TTL 与上限、自定义文档源（customDocs）、缓存列表查看/移除/清空；项目级 `.dsh-livedocs.json` 覆盖
 - [x] M3.7：策展注册表（50+ 主流库，verified llms.txt 源直连）+ 预热拉满 N 个（失败不占名额，注册表命中插队）+ 出错后查文档规则；缓存迁至 `~/.dsh/livedocs/`（跨 profile 共享，插件升级不清零）
 - [x] M4：可选 Context7 云端索引兜底（设置卡片填 Key 即启用，默认关闭；版本钉定 + 401/429 显式报错；Key 仅全局设置，项目文件不可覆盖）
-- [ ] M5：嵌入式 skill 自动触发
+- [x] M5：嵌入式 skill 自动触发（`ctx.skills` 运行时注册 `livedocs` 技能，目录描述常驻、正文按需加载；设置卡片可关；与总开关联动）
 
 ## 兼容性
 
