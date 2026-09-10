@@ -1,0 +1,29 @@
+{
+  "name": "dsh-livedocs",
+  "version": "0.1.0",
+  "description": "Version-pinned live library docs for DeepSeek Harness — kill hallucinated APIs.",
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "docs",
+    "context7",
+    "llms-txt"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "*"
+  }
+}
