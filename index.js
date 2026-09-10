@@ -9,6 +9,7 @@
 
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { join, dirname } from 'node:path'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { DocsCache } from './lib/cache.js'
@@ -79,7 +80,10 @@ export function apply(ctx) {
     defineTool({
       name: 'docs_query',
       description:
-        'Fetch up-to-date, version-pinned documentation and code examples for a library. ' +
+        'Fetch up-to-date documentation and code examples for a third-party library. ' +
+        'IMPORTANT: always call this BEFORE writing code that uses an external library/framework API ' +
+        '(React, Next.js, Vue, Tailwind, etc.) — never rely on training data for library APIs, ' +
+        'they may be outdated. Pass projectDir so the installed version is pinned automatically. ' +
         'Results are cached locally (7-day TTL) and trimmed to a token budget. ' +
         'Do NOT call this more than 3 times per question; if docs are insufficient, ' +
         'answer with the best information you have and say so.',
@@ -115,111 +119,9 @@ export function apply(ctx) {
           type: 'object',
           additionalProperties: true,
         },
-        render: (_args, value) => [
-          {
-            type: 'text',
-            text:
-              `--- BEGIN LIBRARY DOCS (${value.library}@${value.version ?? 'latest'}, ` +
-              `version from: ${value.versionSource ?? 'unknown'}, ` +
-              `source: ${value.sourceType ?? 'none'}${value.stale ? ', STALE CACHE' : ''}) ---\n` +
-              (value.versionWarning ? `${value.versionWarning}\n` : '') +
-              (value.topicFallback
-                ? 'NOTE: no section matched the topic; returning an overview instead.\n'
-                : '') +
-              `${value.text}\n--- END LIBRARY DOCS ---\n` +
-              `(${value.chunksUsed}/${value.chunksTotal} sections within token budget)`,
-          },
-        ],
+        render: (_args, value) => [{ type: 'text', text: formatDocsText(value) }],
       },
-      async execute(args) {
-        const tokens = args.tokens ?? 4000
-        const resolved = await resolveLibrary(args.library)
-        if (!resolved) {
-          return {
-            library: args.library,
-            version: null,
-            text: `Library "${args.library}" could not be resolved.`,
-            sourceType: null,
-            stale: false,
-            chunksTotal: 0,
-            chunksUsed: 0,
-          }
-        }
-        // Version resolution order: explicit arg > installed in project > latest release
-        const detection = args.version
-          ? null
-          : detectInstalledVersion(args.projectDir ?? process.cwd(), resolved.name)
-        const version = args.version ?? detection?.version ?? resolved.version
-        const versionSource = args.version
-          ? 'explicit'
-          : (detection?.source ?? 'registry-latest')
-        const cacheKey = `${resolved.name}@${version ?? 'latest'}|${resolved.sources[0]?.url ?? ''}`
-
-        let fetched = null
-        let stale = false
-        const hit = cache.get(cacheKey)
-        if (hit) {
-          fetched = { content: hit.content, sourceType: 'cache', sourceUrl: cacheKey }
-        } else {
-          fetched = await fetchDocs(resolved, { version })
-          if (fetched) {
-            cache.set(cacheKey, fetched.content)
-          } else {
-            // Offline fallback: serve expired cache rather than nothing
-            const staleHit = cache.get(cacheKey, { allowStale: true })
-            if (staleHit) {
-              fetched = { content: staleHit.content, sourceType: 'cache', sourceUrl: cacheKey }
-              stale = true
-            }
-          }
-        }
-
-        if (!fetched) {
-          return {
-            library: resolved.name,
-            version,
-            text: 'No documentation source responded. The library may not publish llms.txt or a README.',
-            sourceType: null,
-            stale: false,
-            chunksTotal: 0,
-            chunksUsed: 0,
-          }
-        }
-
-        let selected = selectChunks(fetched.content, { topic: args.topic ?? '', tokens })
-        let topicFallback = false
-        if (selected.chunksUsed === 0 && args.topic) {
-          // No section matched the topic — fall back to an overview within budget
-          // instead of returning nothing.
-          selected = selectChunks(fetched.content, { topic: '', tokens })
-          topicFallback = true
-        }
-
-        // Honesty check: llms.txt sources always serve the LATEST docs. If the
-        // resolved version is older, say so explicitly in the header.
-        const versionWarning =
-          version &&
-          resolved.version &&
-          version !== resolved.version &&
-          (fetched.sourceType ?? '').startsWith('llms')
-            ? `WARNING: project uses ${version}, but this docs source serves the latest release (${resolved.version}). Verify APIs against ${version} before use.`
-            : null
-
-        return {
-          library: resolved.name,
-          version,
-          versionSource,
-          text:
-            selected.text ||
-            'Docs were fetched but nothing fit the token budget. Try a larger `tokens` value.',
-          sourceType: fetched.sourceType,
-          stale,
-          versionWarning,
-          topicFallback,
-          chunksTotal: selected.chunksTotal,
-          chunksUsed: selected.chunksUsed,
-        }
-      },
+      execute: (args) => runDocsQuery(cache, args),
     }),
   )
 
@@ -241,14 +143,20 @@ export function apply(ctx) {
     defineTool({
       name: 'docs_setup',
       description:
-        'Install (or update) the dsh-livedocs usage rules into the project AGENTS.md, ' +
+        'Install (or update) the dsh-livedocs usage rules into an AGENTS.md instructions file, ' +
         'so the agent automatically consults live docs before using library APIs. ' +
+        'scope "project" writes the project AGENTS.md; scope "global" writes the user-global ' +
+        '$DSH_HOME/AGENTS.md which applies to every project (recommended — do it once). ' +
         'Idempotent: the managed block is replaced in place, manual edits elsewhere are kept.',
       parameters: {
         projectDir: {
           type: 'string',
-          required: true,
-          description: 'Absolute path of the project root where AGENTS.md lives.',
+          description: 'Absolute path of the project root. Required unless scope is "global".',
+        },
+        scope: {
+          type: 'string',
+          enum: ['project', 'global'],
+          description: '"project" (default) writes <projectDir>/AGENTS.md; "global" writes ~/.dsh/AGENTS.md.',
         },
       },
       output: {
@@ -256,11 +164,23 @@ export function apply(ctx) {
         render: (_args, value) => [{ type: 'text', text: value.message }],
       },
       async execute(args) {
-        const target = join(args.projectDir, 'AGENTS.md')
+        const scope = args.scope ?? 'project'
+        if (scope === 'project' && !args.projectDir) {
+          return {
+            ok: false,
+            action: 'error',
+            message: 'docs_setup: projectDir is required when scope is "project".',
+          }
+        }
+        const target =
+          scope === 'global'
+            ? join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'AGENTS.md')
+            : join(args.projectDir, 'AGENTS.md')
         const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         const blockPattern = new RegExp(`${esc(RULE_BEGIN)}[\\s\\S]*?${esc(RULE_END)}`)
         if (!existsSync(target)) {
-          writeFileSync(target, `# Project Rules\n\n${RULE_BODY}\n`)
+          const title = scope === 'global' ? '# Global Rules' : '# Project Rules'
+          writeFileSync(target, `${title}\n\n${RULE_BODY}\n`)
           return { ok: true, action: 'created', message: `Created ${target} with dsh-livedocs rules.` }
         }
         const current = readFileSync(target, 'utf8')
@@ -314,5 +234,162 @@ export function apply(ctx) {
     }),
   )
 
+  // ------------------------------------------------------------------ /docs command
+  // Register a user-facing slash command when the host provides the commands
+  // service (web profile does). ctx.inject() waits for the service; if the
+  // profile never provides it, the callback simply never runs and the plugin
+  // still loads fine — do NOT move 'commands' into the top-level inject list.
+  ctx.inject(['commands'], (c) => {
+    c.effect(function* () {
+      yield c.commands.register({
+        name: 'docs',
+        description: 'Query live library docs (version-pinned, cached)',
+        input: { hint: '<library> [topic]' },
+        handler: async (invocation) => {
+          const input = invocation.rawInput.trim()
+          if (!input) {
+            return {
+              kind: 'success',
+              text:
+                'Usage: /docs <library> [topic]\n' +
+                'Examples:\n' +
+                '  /docs react hooks\n' +
+                '  /docs next routing\n' +
+                'Docs are fetched live, pinned to the installed version when the ' +
+                'current directory is a project, and cached for 7 days.',
+            }
+          }
+          const [library, ...rest] = input.split(/\s+/)
+          const topic = rest.join(' ')
+          try {
+            const value = await runDocsQuery(cache, {
+              library,
+              topic,
+              tokens: 2000,
+              projectDir: process.cwd(),
+            })
+            if (!value.sourceType) return { kind: 'error', text: value.text }
+            return { kind: 'success', text: formatDocsText(value) }
+          } catch (err) {
+            return { kind: 'error', text: `docs query failed: ${err?.message ?? err}` }
+          }
+        },
+      })
+    }, 'dsh-livedocs command lifecycle')
+  })
+
   ctx.logger?.info?.('dsh-livedocs loaded: docs_resolve / docs_query / docs_cache / docs_setup registered')
+}
+
+// ------------------------------------------------------------------ shared core
+
+/**
+ * Shared docs pipeline used by both the docs_query tool and the /docs command.
+ * @param {import('./lib/cache.js').DocsCache} cache
+ */
+async function runDocsQuery(cache, args) {
+  const tokens = args.tokens ?? 4000
+  const resolved = await resolveLibrary(args.library)
+  if (!resolved) {
+    return {
+      library: args.library,
+      version: null,
+      text: `Library "${args.library}" could not be resolved.`,
+      sourceType: null,
+      stale: false,
+      chunksTotal: 0,
+      chunksUsed: 0,
+    }
+  }
+  // Version resolution order: explicit arg > installed in project > latest release
+  const detection = args.version
+    ? null
+    : detectInstalledVersion(args.projectDir ?? process.cwd(), resolved.name)
+  const version = args.version ?? detection?.version ?? resolved.version
+  const versionSource = args.version
+    ? 'explicit'
+    : detection?.version
+      ? detection.source
+      : 'registry-latest'
+  const cacheKey = `${resolved.name}@${version ?? 'latest'}|${resolved.sources[0]?.url ?? ''}`
+
+  let fetched = null
+  let stale = false
+  const hit = cache.get(cacheKey)
+  if (hit) {
+    fetched = { content: hit.content, sourceType: 'cache', sourceUrl: cacheKey }
+  } else {
+    fetched = await fetchDocs(resolved, { version })
+    if (fetched) {
+      cache.set(cacheKey, fetched.content)
+    } else {
+      // Offline fallback: serve expired cache rather than nothing
+      const staleHit = cache.get(cacheKey, { allowStale: true })
+      if (staleHit) {
+        fetched = { content: staleHit.content, sourceType: 'cache', sourceUrl: cacheKey }
+        stale = true
+      }
+    }
+  }
+
+  if (!fetched) {
+    return {
+      library: resolved.name,
+      version,
+      text: 'No documentation source responded. The library may not publish llms.txt or a README.',
+      sourceType: null,
+      stale: false,
+      chunksTotal: 0,
+      chunksUsed: 0,
+    }
+  }
+
+  let selected = selectChunks(fetched.content, { topic: args.topic ?? '', tokens })
+  let topicFallback = false
+  if (selected.chunksUsed === 0 && args.topic) {
+    // No section matched the topic — fall back to an overview within budget
+    // instead of returning nothing.
+    selected = selectChunks(fetched.content, { topic: '', tokens })
+    topicFallback = true
+  }
+
+  // Honesty check: llms.txt sources always serve the LATEST docs. If the
+  // resolved version is older, say so explicitly in the header.
+  const versionWarning =
+    version &&
+    resolved.version &&
+    version !== resolved.version &&
+    (fetched.sourceType ?? '').startsWith('llms')
+      ? `WARNING: project uses ${version}, but this docs source serves the latest release (${resolved.version}). Verify APIs against ${version} before use.`
+      : null
+
+  return {
+    library: resolved.name,
+    version,
+    versionSource,
+    text:
+      selected.text ||
+      'Docs were fetched but nothing fit the token budget. Try a larger `tokens` value.',
+    sourceType: fetched.sourceType,
+    stale,
+    versionWarning,
+    topicFallback,
+    chunksTotal: selected.chunksTotal,
+    chunksUsed: selected.chunksUsed,
+  }
+}
+
+/** Render the shared result value as the docs block shown to model or user. */
+function formatDocsText(value) {
+  return (
+    `--- BEGIN LIBRARY DOCS (${value.library}@${value.version ?? 'latest'}, ` +
+    `version from: ${value.versionSource ?? 'unknown'}, ` +
+    `source: ${value.sourceType ?? 'none'}${value.stale ? ', STALE CACHE' : ''}) ---\n` +
+    (value.versionWarning ? `${value.versionWarning}\n` : '') +
+    (value.topicFallback
+      ? 'NOTE: no section matched the topic; returning an overview instead.\n'
+      : '') +
+    `${value.text}\n--- END LIBRARY DOCS ---\n` +
+    `(${value.chunksUsed}/${value.chunksTotal} sections within token budget)`
+  )
 }
