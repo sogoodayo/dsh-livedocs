@@ -33,6 +33,7 @@
     "react-dom": {},
     "react-router-dom": {},
     "element-ui": {},
+    "@smallwei/avue": {},
     "ant-design-vue": {},
     "@element-plus/icons-vue": {},
     "vant": {},
