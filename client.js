@@ -356,11 +356,21 @@ window.__ModuleLoader__.load({
         }
       }, 'dsh-livedocs: remote mount')
 
+      // Remote namespace methods resolve to a RemoteResult envelope
+      // ({ok: true, value} | {ok: false, error}) — callers must unwrap it
+      // themselves; the namespace service never throws business failures.
+      const unwrap = async (call) => {
+        const result = await call
+        if (!result || result.ok !== true) {
+          throw new Error(result?.error?.message ?? 'remote call failed')
+        }
+        return result.value
+      }
       const remoteApi = {
         ready: () => remoteReady && !!ctx.get('remote.livedocs'),
-        list: () => ctx.get('remote.livedocs').listDocs(),
-        remove: (key) => ctx.get('remote.livedocs').removeDoc(key),
-        clear: () => ctx.get('remote.livedocs').clearDocs(),
+        list: () => unwrap(ctx.get('remote.livedocs').listDocs()),
+        remove: (key) => unwrap(ctx.get('remote.livedocs').removeDoc(key)),
+        clear: () => unwrap(ctx.get('remote.livedocs').clearDocs()),
       }
 
       ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
