@@ -102,6 +102,24 @@ window.__ModuleLoader__.load({
         maxHeight: 260, overflowY: 'auto',
         border: '0.5px solid var(--dsw-alias-border-l2, #eee)', borderRadius: 8, padding: '0 10px',
       },
+      helpWrap: { position: 'relative', display: 'inline-flex', marginLeft: 6, verticalAlign: 'middle' },
+      helpIcon: {
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 14, height: 14, borderRadius: '50%', fontSize: 10, cursor: 'help', userSelect: 'none',
+        border: '0.5px solid var(--dsw-alias-border-l3, #ccc)',
+        color: 'var(--dsw-alias-label-secondary, #888)',
+      },
+      helpBubble: {
+        position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, width: 280,
+        padding: '10px 12px', zIndex: 50, borderRadius: 8,
+        background: 'var(--dsw-alias-bg-primary, #fff)',
+        border: '0.5px solid var(--dsw-alias-border-l2, #e2e2e2)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+        fontSize: 12, lineHeight: 1.7, fontWeight: 400,
+        color: 'var(--dsw-alias-label-primary, inherit)',
+        display: 'flex', flexDirection: 'column', gap: 6,
+      },
+      helpLink: { color: 'var(--dsw-alias-label-info, #06c)', wordBreak: 'break-all' },
       overlay: {
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0, 0, 0, 0.35)',
@@ -172,6 +190,21 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // Hover "?" help bubble. The wrapper owns the hover state so moving the
+    // pointer into the bubble keeps it open — the links inside stay clickable.
+    function HelpTip(props) {
+      const [open, setOpen] = useState(false)
+      return h('span', {
+        style: css.helpWrap,
+        onMouseEnter: () => setOpen(true),
+        onMouseLeave: () => setOpen(false),
+        onClick: (e) => { e.stopPropagation(); setOpen(!open) },
+      },
+        h('span', { style: css.helpIcon, 'aria-label': '帮助' }, '?'),
+        open ? h('span', { style: css.helpBubble }, ...(props.children ?? [])) : null,
+      )
+    }
+
     // Masked credential input; commits on blur/Enter, empty string disables.
     function KeyField(props) {
       const [draft, setDraft] = useState(props.value ?? '')
@@ -184,7 +217,7 @@ window.__ModuleLoader__.load({
       }
       return h('div', { style: css.row },
         h('div', { style: css.label },
-          h('span', null, props.label),
+          h('span', null, props.label, props.help ?? null),
           props.hint ? h('span', { style: css.labelHint }, props.hint) : null,
         ),
         h('input', {
@@ -460,6 +493,22 @@ window.__ModuleLoader__.load({
             }),
             h(KeyField, {
               label: 'Context7 API Key（可选兜底源）',
+              help: h(HelpTip, null,
+                h('span', null, 'Context7 是收录 10000+ 开源库文档的云端索引服务（Upstash 出品）。'),
+                h('span', null, '本插件默认从 llms.txt / GitHub 直接拉文档，免费且无需注册；只有当某个库这两种来源都拉不到时，填了 Key 才会自动回退到 Context7 查询，提高小众库的命中率。留空则完全不启用。'),
+                h('span', null,
+                  '官网：',
+                  h('a', { href: 'https://context7.com', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com'),
+                ),
+                h('span', null,
+                  'Key 申请与管理（ctx7sk 开头）：',
+                  h('a', { href: 'https://context7.com/docs/howto/api-keys', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'API Keys 文档'),
+                ),
+                h('span', null,
+                  '免费申请入口：',
+                  h('a', { href: 'https://context7.com/dashboard', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com/dashboard'),
+                ),
+              ),
               hint: value.context7Key?.trim()
                 ? '已配置：无 llms.txt/README 覆盖的库将回退到 Context7 云端索引'
                 : '留空关闭；在 context7.com/dashboard 免费申请（ctx7sk 开头）',
