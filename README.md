@@ -1,6 +1,7 @@
 # dsh-livedocs
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/dsh-livedocs)](https://www.npmjs.com/package/dsh-livedocs)
 [![DSH Plugin](https://img.shields.io/badge/DSH-plugin-blue)](https://github.com/deepseek-ai/deepseek-harness)
 [![llms.txt](https://img.shields.io/badge/docs-llms.txt-green)](https://llmstxt.org)
 
@@ -11,6 +12,10 @@ Version-pinned live library docs for **DeepSeek Harness (DSH)** — kill halluci
 ## 安装
 
 ```bash
+# npm（推荐，包名即插件名）
+dsh plugin --profile web add dsh-livedocs
+
+# 或从 GitHub 安装
 dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 ```
 

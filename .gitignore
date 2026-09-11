@@ -2,3 +2,55 @@ node_modules/
 data/
 test-fixture/
 *.log
+
+
+# dependencies
+node_modules/
+
+# build output (tsdown 打包产物 lib/ 构建生成的临时子项；手写 lib/index.js 与 lib/client.js 是提交的源码)
+lib/typert.*.js
+lib/types/
+dist/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor / IDE
+.vscode/
+.idea/
+
+# env
+.env
+.env.*
+!.env.example
+
+# test coverage
+coverage/
+
+# TypeScript build info
+*.tsbuildinfo
+_cordis.*.txt
+# build & temp artifacts
+_out/
+_outh/
+_bundle.*.txt
+__bundle*.js
+_legacy-src/
+
+# npm ƾ�ݣ��� authToken���������ύ���뱾����ʱ����
+.npmrc
+.md
+
+_pack-cache/
+
+# npm pack artifacts (release tarballs stay local)
+*.tgz
+

@@ -12,7 +12,7 @@
 | 真机验证 | ✅ link 安装在真实宿主长期运行；工具、卡片、remote、预热、注册表均实测 |
 | Gitee 镜像 | ✅ `gitee.com/sogoodeveryday/dsh-livedocs`（仅备份，**不能作为安装源**，`github:` 前缀只认 GitHub） |
 | GitHub 仓库 | ✅ `github.com/sogoodayo/dsh-livedocs`（main 已推送；远程：origin=GitHub、gitee=镜像） |
-| npm 包 | ⏸️ 名字 `dsh-livedocs` 可用（已查 404）；打包已验证（16 文件 / 31.9 kB）；待 👤 `npm login` 后发布 |
+| npm 包 | ✅ `dsh-livedocs@0.1.0` 已发布（2026-09-11）；0.1.1 待发（README 补 npm 安装命令 + npm 徽章） |
 | 分发方式 | **双轨**：Git 仓库（`dsh plugin add github:sogoodayo/dsh-livedocs`）+ npm（`dsh plugin add dsh-livedocs`，裸包名走 pnpm registry 解析，宿主源码已确认支持） |
 
 ## 一点五、发到 npm（👤 登录后一条命令）
