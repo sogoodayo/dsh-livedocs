@@ -1,8 +1,12 @@
 # dsh-livedocs
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![DSH Plugin](https://img.shields.io/badge/DSH-plugin-blue)](https://github.com/deepseek-ai/deepseek-harness)
+[![llms.txt](https://img.shields.io/badge/docs-llms.txt-green)](https://llmstxt.org)
+
 Version-pinned live library docs for **DeepSeek Harness (DSH)** — kill hallucinated APIs.
 
-在 agent 写代码前，拉取**版本对应**的官方文档注入上下文：llms.txt 优先、GitHub tag 文档兜底、本地缓存离线可用、token 预算可控。零 API Key、零原生依赖。
+在 agent 写代码前，拉取**版本对应**的官方文档注入上下文：llms.txt 优先、GitHub tag 文档兜底、本地缓存离线可用、token 预算可控。装好即注册嵌入式技能自动触发，零配置、零 API Key（可选 Context7 云端兜底）。
 
 ## 安装
 
