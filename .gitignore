@@ -45,8 +45,9 @@ _bundle.*.txt
 __bundle*.js
 _legacy-src/
 
-# npm ƾ�ݣ��� authToken���������ύ���뱾����ʱ����
+# npm 凭证（含 authToken，切勿提交；发布时临时生成的本地文件）
 .npmrc
+# 本地临时备忘文件（命令/凭证草稿，不入库）
 .md
 
 _pack-cache/
