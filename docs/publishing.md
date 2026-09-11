@@ -12,7 +12,28 @@
 | 真机验证 | ✅ link 安装在真实宿主长期运行；工具、卡片、remote、预热、注册表均实测 |
 | Gitee 镜像 | ✅ `gitee.com/sogoodeveryday/dsh-livedocs`（仅备份，**不能作为安装源**，`github:` 前缀只认 GitHub） |
 | GitHub 仓库 | ⏸️ 待 👤 建仓 |
-| 分发方式 | **Git 仓库**（`dsh plugin add github:<账号>/dsh-livedocs`）；不发 npm——生态无此安装路径 |
+| npm 包 | ⏸️ 名字 `dsh-livedocs` 可用（已查 404）；打包已验证（16 文件 / 31.9 kB）；待 👤 `npm login` 后发布 |
+| 分发方式 | **双轨**：Git 仓库（`dsh plugin add github:<账号>/dsh-livedocs`）+ npm（`dsh plugin add dsh-livedocs`，裸包名走 pnpm registry 解析，宿主源码已确认支持） |
+
+## 一点五、发到 npm（👤 登录后一条命令）
+
+发布前已验证的事实：
+
+- `dsh plugin add` 底层是 pnpm，裸包名原样透传走 registry 解析（宿主 `plugin-*.js` 源码确认）
+- 依赖已补全：`dsh-typert-protocol`、`schemastery` 原为漏声明（dev 期手动 vendor 掩盖了），现已写入 dependencies；三个依赖的目标版本在 registry 均存在
+- ⚠️ DeepSeek 官方包的 `latest` 标签停在旧版（dsh-tools latest=0.0.1-rc.1），我们钉 `^0.1.2-rc.1` 预发布区间，解析到实测过的 0.1.2-rc.1，不受 latest 标签影响
+- `npm pack --dry-run` 通过：16 文件、31.9 kB，无 node_modules / data / 测试残留
+
+👤 发布步骤：
+
+```bash
+cd D:\my\deepseek-ai\dsh-livedocs
+npm login                    # 需要 npm 账号（npmjs.com 注册，可能开 2FA）
+npm publish                  # 非 scoped 包默认 public
+```
+
+⚠️ 注意：npm 发布接近不可逆（72 小时后无法 unpublish，版本号永久占用），确认 v0.1.0 内容无误再发。发布后安装验证：`dsh plugin --profile web add dsh-livedocs`。
+
 
 ## 一、推到 GitHub（👤）
 

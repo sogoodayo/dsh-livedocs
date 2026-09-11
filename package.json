@@ -24,6 +24,15 @@
     "llms-txt"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitee.com/sogoodeveryday/dsh-livedocs.git"
+  },
+  "bugs": "https://gitee.com/sogoodeveryday/dsh-livedocs/issues",
+  "homepage": "https://gitee.com/sogoodeveryday/dsh-livedocs#readme",
+  "engines": {
+    "node": ">=18"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -37,6 +46,8 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1"
+    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.2-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.2"
   }
 }
