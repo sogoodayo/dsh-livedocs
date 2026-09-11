@@ -26,10 +26,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://gitee.com/sogoodeveryday/dsh-livedocs.git"
+    "url": "git+https://github.com/sogoodayo/dsh-livedocs.git"
   },
-  "bugs": "https://gitee.com/sogoodeveryday/dsh-livedocs/issues",
-  "homepage": "https://gitee.com/sogoodeveryday/dsh-livedocs#readme",
+  "bugs": "https://github.com/sogoodayo/dsh-livedocs/issues",
+  "homepage": "https://github.com/sogoodayo/dsh-livedocs#readme",
   "engines": {
     "node": ">=18"
   },

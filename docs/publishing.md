@@ -11,9 +11,9 @@
 | 测试 | ✅ 49 项全过（工作区 8 个测试套件） |
 | 真机验证 | ✅ link 安装在真实宿主长期运行；工具、卡片、remote、预热、注册表均实测 |
 | Gitee 镜像 | ✅ `gitee.com/sogoodeveryday/dsh-livedocs`（仅备份，**不能作为安装源**，`github:` 前缀只认 GitHub） |
-| GitHub 仓库 | ⏸️ 待 👤 建仓 |
+| GitHub 仓库 | ✅ `github.com/sogoodayo/dsh-livedocs`（main 已推送；远程：origin=GitHub、gitee=镜像） |
 | npm 包 | ⏸️ 名字 `dsh-livedocs` 可用（已查 404）；打包已验证（16 文件 / 31.9 kB）；待 👤 `npm login` 后发布 |
-| 分发方式 | **双轨**：Git 仓库（`dsh plugin add github:<账号>/dsh-livedocs`）+ npm（`dsh plugin add dsh-livedocs`，裸包名走 pnpm registry 解析，宿主源码已确认支持） |
+| 分发方式 | **双轨**：Git 仓库（`dsh plugin add github:sogoodayo/dsh-livedocs`）+ npm（`dsh plugin add dsh-livedocs`，裸包名走 pnpm registry 解析，宿主源码已确认支持） |
 
 ## 一点五、发到 npm（👤 登录后一条命令）
 
@@ -35,41 +35,21 @@ npm publish                  # 非 scoped 包默认 public
 ⚠️ 注意：npm 发布接近不可逆（72 小时后无法 unpublish，版本号永久占用），确认 v0.1.0 内容无误再发。发布后安装验证：`dsh plugin --profile web add dsh-livedocs`。
 
 
-## 一、推到 GitHub（👤）
+## 一、GitHub 后续（👤 网页 2 分钟）
 
-⚠️ 现有 `origin` 指向 Gitee，先改名再关联 GitHub，避免远程冲突：
+✅ 仓库已建好并推送（`github.com/sogoodayo/dsh-livedocs`；origin=GitHub，gitee=镜像，日常双推：`git push origin main && git push gitee main`）。
 
-```bash
-cd D:\my\deepseek-ai\dsh-livedocs
+剩一件网页操作——打话题标签（awesome 列表和市场靠它自动收录）：
 
-# 1. 把现有 origin（Gitee）改名保留为镜像
-git remote rename origin gitee
-
-# 2. 👤 方式 A：gh CLI（已登录则一条命令建仓+推送）
-gh repo create dsh-livedocs --public --source=. --push \
-  --description "Version-pinned live library docs for DeepSeek Harness — kill hallucinated APIs"
-
-# 2. 👤 方式 B：网页建仓后手动关联
-git remote add origin git@github.com:<你的账号>/dsh-livedocs.git
-git push -u origin main
-
-# 3. 之后日常推送：GitHub 为主，Gitee 做镜像
-git push origin main && git push gitee main
-```
-
-建仓后立即打话题标签（awesome 列表和市场靠它自动收录）：
-
-```bash
-gh repo edit --add-topic dsh-plugin --add-topic deepseek-harness \
-  --add-topic llms-txt --add-topic agent-docs --add-topic context7
-```
+仓库页 → About 区右上角 ⚙️ → Topics，添加：
+`dsh-plugin`、`deepseek-harness`、`llms-txt`、`agent-docs`、`context7`
 
 ## 二、Git 安装路径终验（建仓后必做）
 
 link 安装已长期验证，但 `github:` 远程安装路径本身要走一遍：
 
 ```bash
-dsh plugin --profile web add github:<你的账号>/dsh-livedocs
+dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 dsh web
 ```
 

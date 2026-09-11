@@ -11,7 +11,7 @@ Version-pinned live library docs for **DeepSeek Harness (DSH)** — kill halluci
 ## 安装
 
 ```bash
-dsh plugin --profile web add github:your-account/dsh-livedocs
+dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 ```
 
 ## 用法
