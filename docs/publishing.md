@@ -93,9 +93,9 @@ dsh-livedocs 是 DSH 的实时库文档插件。装上即注册 `livedocs` 嵌�
 ## 五、README 待补（👤 截图需你操作）
 
 - [ ] **截图 3 张**（放 `docs/images/`，README 引用）：
-  1. 一次真实的 `docs_query` 工具调用及返回（展示版本钉选头）
-  2. 设置卡片展开态（展示全部配置项 + 缓存列表）
-  3. `/docs react hooks` 斜杠命令效果
+  1. 一次真实的 `docs_query` 工具调用及返回（展示版本钉选头）⏸️ 待截
+  2. ~~设置卡片展开态~~ ✅ `docs/images/settings-card.png`
+  3. ~~缓存列表~~ ✅ `docs/images/cache-panel.png`（原计划的斜杠命令截图被这张替代，更实用）
 - [ ] 兼容性版本号（终验后填，如 `dsh >= 0.1.2`）
 - [x] 徽章（License / DSH plugin，已加）
 - [ ] 安装命令中的 `your-account` 替换为真实 GitHub 账号

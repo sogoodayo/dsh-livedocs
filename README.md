@@ -53,6 +53,12 @@ dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 | `docs_cache` | 缓存统计 / 清理 |
 | `docs_setup` | 把使用规则幂等写入 AGENTS.md（`scope: project` 项目级 / `scope: global` 全局） |
 
+## 截图
+
+| 设置卡片（全部配置可视化） | 缓存文档管理 |
+|---|---|
+| ![设置卡片](docs/images/settings-card.png) | ![缓存文档管理](docs/images/cache-panel.png) |
+
 ## 工作原理
 
 ```
