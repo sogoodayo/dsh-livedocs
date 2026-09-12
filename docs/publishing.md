@@ -1,7 +1,7 @@
-# dsh-livedocs 发布清单（v0.1.0）
+# dsh-livedocs 发布清单
 
-> 代码侧已就绪：M1–M5 全部完成，49 项测试全过，真机（link 安装 + web profile）验证通过。
-> 唯一卡点：GitHub 建仓需要本人登录。标注 👤 的步骤需要你操作，其余可代做。
+> 发布线已全部走完：npm 已发（0.1.1）、市场已收录、精选库 PR 已提。
+> 本文档留作后续版本发布的操作参考。
 
 ## 〇、当前状态速览
 
@@ -9,11 +9,13 @@
 |---|---|
 | 功能 | ✅ M1 三工具 / M2 版本钉选 / M2.5 斜杠命令 / M2.6 依赖注入+预热 / M3 设置卡片 / M3.7 策展注册表 / M4 Context7 兜底 / M5 嵌入式技能 |
 | 测试 | ✅ 49 项全过（工作区 8 个测试套件） |
-| 真机验证 | ✅ link 安装在真实宿主长期运行；工具、卡片、remote、预热、注册表均实测 |
+| 真机验证 | ✅ link 开发安装 + registry 安装（0.1.1 从 npm 真装实测）均验证 |
 | Gitee 镜像 | ✅ `gitee.com/sogoodeveryday/dsh-livedocs`（仅备份，**不能作为安装源**，`github:` 前缀只认 GitHub） |
-| GitHub 仓库 | ✅ `github.com/sogoodayo/dsh-livedocs`（main 已推送；远程：origin=GitHub、gitee=镜像） |
-| npm 包 | ✅ `dsh-livedocs@0.1.0` 已发布（2026-09-11）；0.1.1 待发（README 补 npm 安装命令 + npm 徽章） |
-| 分发方式 | **双轨**：Git 仓库（`dsh plugin add github:sogoodayo/dsh-livedocs`）+ npm（`dsh plugin add dsh-livedocs`，裸包名走 pnpm registry 解析，宿主源码已确认支持） |
+| GitHub 仓库 | ✅ `github.com/sogoodayo/dsh-livedocs`（origin=GitHub、gitee=镜像，日常双推） |
+| npm 包 | ✅ `dsh-livedocs@0.1.1`（2026-09-11）；0.1.2 = LICENSE 进包 |
+| 市场收录 | ✅ DSH Marketplace 已收录（2026-09-12 确认：installable、MIT 识别、npm 安装命令解析正确） |
+| 精选库 | ✅ PR #5 已提（2026-09-12，Tools & Capabilities，验证 53/53 全绿；dsh-code-ui 为 PR #4） |
+| 分发方式 | **双轨**：`dsh plugin add dsh-livedocs`（npm）+ `dsh plugin add github:sogoodayo/dsh-livedocs`（Git） |
 
 ## 一点五、发到 npm（👤 登录后一条命令）
 
