@@ -28,11 +28,11 @@ dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 **1. 斜杠命令（手动，最直接）**——在输入框敲 `/` 即可看到：
 
 ```
-/docs react hooks
-/docs next routing
+/livedocs react hooks
+/livedocs next routing
 ```
 
-结果直接渲染在会话里，**不消耗模型 token**。
+（`/docs` 仍作为别名保留，老用法不受影响。）结果直接渲染在会话里，**不消耗模型 token**。
 
 **2. 全局自动规则（推荐，装一次处处生效）**——让 agent 跑一次：
 
@@ -84,7 +84,7 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 
 - [x] M1：三工具 + 多源降级 + 缓存
 - [x] M2：读项目 node_modules / lockfile 自动钉版本；`docs_setup` 规则幂等注入 AGENTS.md
-- [x] M2.5：`/docs` 斜杠命令；全局规则；版本不一致警告；topic 零命中回退
+- [x] M2.5：`/livedocs` 斜杠命令（`/docs` 保留为别名）；全局规则；版本不一致警告；topic 零命中回退
 - [x] M2.6：依赖上下文注入（每会话自动向模型展示项目依赖及安装版本）+ Top 3 依赖文档后台预热
 - [x] M3：设置卡片（设置 → 插件 → 插件配置 → Live Docs）：总开关、注入/预热开关、预热 Top N、缓存 TTL 与上限、自定义文档源（customDocs）、缓存列表查看/移除/清空；项目级 `.dsh-livedocs.json` 覆盖
 - [x] M3.7：策展注册表（50+ 主流库，verified llms.txt 源直连）+ 预热拉满 N 个（失败不占名额，注册表命中插队）+ 出错后查文档规则；缓存迁至 `~/.dsh/livedocs/`（跨 profile 共享，插件升级不清零）

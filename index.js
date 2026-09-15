@@ -324,50 +324,60 @@ export function apply(ctx) {
     }),
   )
 
-  // ------------------------------------------------------------------ /docs command
-  // Register a user-facing slash command when the host provides the commands
-  // service (web profile does). ctx.inject() waits for the service; if the
-  // profile never provides it, the callback simply never runs and the plugin
-  // still loads fine — do NOT move 'commands' into the top-level inject list.
+  // ------------------------------------------------------- /livedocs command
+  // Primary slash command named after the plugin — `/docs` looked like a
+  // host built-in, so users could not tell who owned it. `/docs` stays
+  // registered as an alias so existing muscle memory and docs keep working.
+  // ctx.inject() waits for the commands service; if the profile never
+  // provides it, the callback simply never runs and the plugin still loads
+  // fine — do NOT move 'commands' into the top-level inject list.
   ctx.inject(['commands'], (c) => {
+    const handler = async (invocation) => {
+      const input = invocation.rawInput.trim()
+      if (!input) {
+        return {
+          kind: 'success',
+          text:
+            'Usage: /livedocs <library> [topic]  (alias: /docs)\n' +
+            'Examples:\n' +
+            '  /livedocs react hooks\n' +
+            '  /livedocs next routing\n' +
+            'Docs are fetched live, pinned to the installed version when the ' +
+            'current directory is a project, and cached for 7 days.',
+        }
+      }
+      const [library, ...rest] = input.split(/\s+/)
+      const topic = rest.join(' ')
+      try {
+        const cfg = configFor(process.cwd())
+        if (!cfg.enabled) {
+          return { kind: 'error', text: 'dsh-livedocs is disabled (设置 → 插件 → 插件配置 → livedocs).' }
+        }
+        const value = await runDocsQuery(cache, {
+          library,
+          topic,
+          tokens: 2000,
+          projectDir: process.cwd(),
+        }, cfg)
+        if (!value.sourceType) return { kind: 'error', text: value.text }
+        return { kind: 'success', text: formatDocsText(value) }
+      } catch (err) {
+        return { kind: 'error', text: `docs query failed: ${err?.message ?? err}` }
+      }
+    }
     c.effect(function* () {
       yield c.commands.register({
-        name: 'docs',
-        description: 'Query live library docs (version-pinned, cached)',
+        name: 'livedocs',
+        description: 'Query live library docs (version-pinned, cached) — dsh-livedocs',
         input: { hint: '<library> [topic]' },
-        handler: async (invocation) => {
-          const input = invocation.rawInput.trim()
-          if (!input) {
-            return {
-              kind: 'success',
-              text:
-                'Usage: /docs <library> [topic]\n' +
-                'Examples:\n' +
-                '  /docs react hooks\n' +
-                '  /docs next routing\n' +
-                'Docs are fetched live, pinned to the installed version when the ' +
-                'current directory is a project, and cached for 7 days.',
-            }
-          }
-          const [library, ...rest] = input.split(/\s+/)
-          const topic = rest.join(' ')
-          try {
-            const cfg = configFor(process.cwd())
-            if (!cfg.enabled) {
-              return { kind: 'error', text: 'dsh-livedocs is disabled (设置 → 插件 → 插件配置 → livedocs).' }
-            }
-            const value = await runDocsQuery(cache, {
-              library,
-              topic,
-              tokens: 2000,
-              projectDir: process.cwd(),
-            }, cfg)
-            if (!value.sourceType) return { kind: 'error', text: value.text }
-            return { kind: 'success', text: formatDocsText(value) }
-          } catch (err) {
-            return { kind: 'error', text: `docs query failed: ${err?.message ?? err}` }
-          }
-        },
+        handler,
+      })
+      // Alias: keep the original short name working.
+      yield c.commands.register({
+        name: 'docs',
+        description: 'Alias of /livedocs (dsh-livedocs)',
+        input: { hint: '<library> [topic]' },
+        handler,
       })
     }, 'dsh-livedocs command lifecycle')
   })
