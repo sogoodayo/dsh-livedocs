@@ -325,9 +325,8 @@ export function apply(ctx) {
   )
 
   // ------------------------------------------------------- /livedocs command
-  // Primary slash command named after the plugin — `/docs` looked like a
-  // host built-in, so users could not tell who owned it. `/docs` stays
-  // registered as an alias so existing muscle memory and docs keep working.
+  // Slash command named after the plugin — a bare `/docs` looked like a
+  // host built-in, so users could not tell who owned it.
   // ctx.inject() waits for the commands service; if the profile never
   // provides it, the callback simply never runs and the plugin still loads
   // fine — do NOT move 'commands' into the top-level inject list.
@@ -338,7 +337,7 @@ export function apply(ctx) {
         return {
           kind: 'success',
           text:
-            'Usage: /livedocs <library> [topic]  (alias: /docs)\n' +
+            'Usage: /livedocs <library> [topic]\n' +
             'Examples:\n' +
             '  /livedocs react hooks\n' +
             '  /livedocs next routing\n' +
@@ -369,13 +368,6 @@ export function apply(ctx) {
       yield c.commands.register({
         name: 'livedocs',
         description: '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
-        input: { hint: '<库名> [主题]' },
-        handler,
-      })
-      // Alias: keep the original short name working.
-      yield c.commands.register({
-        name: 'docs',
-        description: '/livedocs 的别名（dsh-livedocs 插件）',
         input: { hint: '<库名> [主题]' },
         handler,
       })
