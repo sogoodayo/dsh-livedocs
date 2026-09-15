@@ -334,15 +334,21 @@ export function apply(ctx) {
     const handler = async (invocation) => {
       const input = invocation.rawInput.trim()
       if (!input) {
+        const en = configFor(process.cwd()).locale === 'en'
         return {
           kind: 'success',
-          text:
-            'Usage: /livedocs <library> [topic]\n' +
-            'Examples:\n' +
-            '  /livedocs react hooks\n' +
-            '  /livedocs next routing\n' +
-            'Docs are fetched live, pinned to the installed version when the ' +
-            'current directory is a project, and cached for 7 days.',
+          text: en
+            ? 'Usage: /livedocs <library> [topic]\n' +
+              'Examples:\n' +
+              '  /livedocs react hooks\n' +
+              '  /livedocs next routing\n' +
+              'Docs are fetched live, pinned to the installed version when the ' +
+              'current directory is a project, and cached for 7 days.'
+            : '用法：/livedocs <库名> [主题]\n' +
+              '示例：\n' +
+              '  /livedocs react hooks\n' +
+              '  /livedocs next routing\n' +
+              '文档实时拉取；当前目录是项目时自动钉定安装版本；本地缓存 7 天。',
         }
       }
       const [library, ...rest] = input.split(/\s+/)
@@ -364,14 +370,24 @@ export function apply(ctx) {
         return { kind: 'error', text: `docs query failed: ${err?.message ?? err}` }
       }
     }
-    c.effect(function* () {
-      yield c.commands.register({
+    // Re-register on language switch so the hint/description follow locale.
+    let dispose = null
+    const sync = (cfg) => {
+      dispose?.()
+      dispose = null
+      const en = cfg.locale === 'en'
+      dispose = c.commands.register({
         name: 'livedocs',
-        description: '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
-        input: { hint: '<库名> [主题]' },
+        description: en
+          ? 'Query live official docs for a library (pins the installed version, local cache) — dsh-livedocs plugin'
+          : '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
+        input: { hint: en ? '<library> [topic]' : '<库名> [主题]' },
         handler,
       })
-    }, 'dsh-livedocs command lifecycle')
+    }
+    sync(globalConfig())
+    configProvider.watch(sync)
+    ctx.on('dispose', () => { dispose?.(); dispose = null })
   })
 
   // ------------------------------------------- deps context + docs prefetch
