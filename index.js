@@ -368,15 +368,15 @@ export function apply(ctx) {
     c.effect(function* () {
       yield c.commands.register({
         name: 'livedocs',
-        description: 'Query live library docs (version-pinned, cached) — dsh-livedocs',
-        input: { hint: '<library> [topic]' },
+        description: '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
+        input: { hint: '<库名> [主题]' },
         handler,
       })
       // Alias: keep the original short name working.
       yield c.commands.register({
         name: 'docs',
-        description: 'Alias of /livedocs (dsh-livedocs)',
-        input: { hint: '<library> [topic]' },
+        description: '/livedocs 的别名（dsh-livedocs 插件）',
+        input: { hint: '<库名> [主题]' },
         handler,
       })
     }, 'dsh-livedocs command lifecycle')
