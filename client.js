@@ -70,6 +70,150 @@ window.__ModuleLoader__.load({
       ],
     }
 
+    // ------------------------------------------------------------------ i18n
+    // Settings card language. The locale itself is a settings field (zh/en,
+    // default zh), so the card re-renders live when the user switches.
+    const STRINGS = {
+      zh: {
+        cardDesc: '实时库文档：版本钉定、依赖注入、文档预热与自定义文档源',
+        readOnly: '当前部署的设置文档为只读。',
+        loading: '设置加载中…',
+        saveFailed: '保存失败',
+        language: '界面语言',
+        languageHint: '中文 / English（即时生效）',
+        enabled: '启用 dsh-livedocs',
+        enabledHint: '总开关：关闭后工具与注入全部停用',
+        injectDeps: '依赖上下文注入',
+        injectDepsHint: '把项目依赖（含安装版本）注入系统提示',
+        prefetch: '依赖文档预热',
+        prefetchHint: '会话开始时后台拉取头部依赖的文档',
+        skill: '嵌入式技能（自动触发）',
+        skillHint: '在模型的技能目录注册 livedocs 技能，写第三方库代码时自动加载使用规则',
+        prefetchTopN: '预热数量 Top N',
+        prefetchTopNHint: '每个项目预热的依赖个数（0–10）',
+        cacheTtl: '缓存有效期（天）',
+        cacheTtlHint: '超过后重新拉取（1–90）',
+        cacheMax: '缓存上限（条）',
+        cacheMaxHint: '超出后按最久未使用自动淘汰（1–1000）',
+        context7: 'Context7 API Key（可选兜底源）',
+        context7HintOn: '已配置：无 llms.txt/README 覆盖的库将回退到 Context7 云端索引',
+        context7HintOff: '留空关闭；在 context7.com/dashboard 免费申请（ctx7sk 开头）',
+        customDocs: '自定义文档源',
+        customDocsNote: '按库名命中的私有文档（llms.txt 链接），优先于 npm 解析链。',
+        customDocsName: '库名，如 my-lib',
+        customDocsVersion: '版本(可空)',
+        add: '添加',
+        remove: '移除',
+        removeDocTitle: '删除自定义文档源',
+        removeDocBody: (name) => `确定删除 ${name} 的文档源吗？`,
+        cacheTitle: '已缓存文档',
+        clearAll: '清空全部',
+        view: '查看',
+        refresh: '刷新',
+        loadingDots: '加载中…',
+        remoteDown: '远程服务不可用（请确认插件已加载并重启 dsh web）',
+        cacheEmpty: '缓存为空。',
+        cacheCount: (n, bytes) => `${n} 条，共 ${bytes}`,
+        cacheHit: (hit, total) => `命中 ${hit} / ${total} 条`,
+        filterPlaceholder: '按包名过滤…',
+        stale: '(已过期)',
+        cachedAt: (size, time, url) => `${size} · 缓存于 ${time} · ${url}`,
+        noMatch: '没有匹配的条目。',
+        showMore: (n) => `显示更多（还有 ${n} 条）`,
+        removeCacheTitle: '移除缓存文档',
+        removeCacheBody: (lib, ver) => `确定移除 ${lib}@${ver} 的缓存吗？下次查询会重新拉取。`,
+        clearCacheTitle: '清空全部缓存',
+        clearCacheBody: (n) => `确定清空全部 ${n} 条缓存吗？下次查询会重新拉取。`,
+        updateTitle: '插件更新',
+        updateHint: (cur) => `当前版本 ${cur} · 对比 npm 最新发布`,
+        updateHintIdle: '对比 npm registry 上的最新发布',
+        checkUpdate: '检查更新',
+        checking: '检查中…',
+        updateFailed: (err) => `检查失败：${err}（可稍后重试，或检查网络）`,
+        updateAvailable: (latest, cur) => `发现新版本 ${latest}（当前 ${cur}）。在终端执行以下命令完成升级：`,
+        upToDate: (v) => `已是最新版本（${v}）✓`,
+        projectNote: '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置；API Key 属凭据，仅支持全局设置，不接受项目级覆盖）。',
+        cancel: '取消',
+        confirmDelete: '确认删除',
+        help: '帮助',
+        c7what: 'Context7 是收录 10000+ 开源库文档的云端索引服务（Upstash 出品）。',
+        c7how: '本插件默认从 llms.txt / GitHub 直接拉文档，免费且无需注册；只有当某个库这两种来源都拉不到时，填了 Key 才会自动回退到 Context7 查询，提高小众库的命中率。留空则完全不启用。',
+        c7site: '官网：',
+        c7keys: 'Key 申请与管理（ctx7sk 开头）：',
+        c7keysDoc: 'API Keys 文档',
+        c7dash: '免费申请入口：',
+      },
+      en: {
+        cardDesc: 'Live library docs: version pinning, deps injection, prefetch & custom sources',
+        readOnly: 'The settings document of this deployment is read-only.',
+        loading: 'Loading settings…',
+        saveFailed: 'Save failed',
+        language: 'Language',
+        languageHint: '中文 / English (applies instantly)',
+        enabled: 'Enable dsh-livedocs',
+        enabledHint: 'Master switch: disables all tools and injection when off',
+        injectDeps: 'Deps context injection',
+        injectDepsHint: 'Inject project dependencies (with installed versions) into the system prompt',
+        prefetch: 'Docs prefetch',
+        prefetchHint: 'Warm docs for top dependencies in the background when a session starts',
+        skill: 'Embedded skill (auto-trigger)',
+        skillHint: 'Register the livedocs skill so the agent auto-loads usage rules before coding against libraries',
+        prefetchTopN: 'Prefetch Top N',
+        prefetchTopNHint: 'How many dependencies to prefetch per project (0–10)',
+        cacheTtl: 'Cache TTL (days)',
+        cacheTtlHint: 'Entries are refetched after this (1–90)',
+        cacheMax: 'Cache limit (entries)',
+        cacheMaxHint: 'Least-recently-used entries are evicted beyond this (1–1000)',
+        context7: 'Context7 API Key (optional fallback)',
+        context7HintOn: 'Configured: libraries without llms.txt/README coverage fall back to the Context7 cloud index',
+        context7HintOff: 'Empty = off; get a free key at context7.com/dashboard (starts with ctx7sk)',
+        customDocs: 'Custom doc sources',
+        customDocsNote: 'Private docs (llms.txt links) matched by library name, before the npm resolution chain.',
+        customDocsName: 'Library, e.g. my-lib',
+        customDocsVersion: 'Version (opt.)',
+        add: 'Add',
+        remove: 'Remove',
+        removeDocTitle: 'Remove custom doc source',
+        removeDocBody: (name) => `Remove the doc source for ${name}?`,
+        cacheTitle: 'Cached docs',
+        clearAll: 'Clear all',
+        view: 'View',
+        refresh: 'Refresh',
+        loadingDots: 'Loading…',
+        remoteDown: 'Remote service unavailable (make sure the plugin is loaded and restart dsh web)',
+        cacheEmpty: 'Cache is empty.',
+        cacheCount: (n, bytes) => `${n} entries, ${bytes} total`,
+        cacheHit: (hit, total) => `${hit} of ${total} matched`,
+        filterPlaceholder: 'Filter by package…',
+        stale: '(stale)',
+        cachedAt: (size, time, url) => `${size} · cached ${time} · ${url}`,
+        noMatch: 'No matching entries.',
+        showMore: (n) => `Show more (${n} left)`,
+        removeCacheTitle: 'Remove cached docs',
+        removeCacheBody: (lib, ver) => `Remove the cache for ${lib}@${ver}? It will be refetched on the next query.`,
+        clearCacheTitle: 'Clear the whole cache',
+        clearCacheBody: (n) => `Clear all ${n} cached entries? They will be refetched on the next query.`,
+        updateTitle: 'Plugin update',
+        updateHint: (cur) => `Current ${cur} · compared against the latest npm release`,
+        updateHintIdle: 'Compares against the latest release on the npm registry',
+        checkUpdate: 'Check for updates',
+        checking: 'Checking…',
+        updateFailed: (err) => `Check failed: ${err} (retry later, or check your network)`,
+        updateAvailable: (latest, cur) => `New version ${latest} available (current ${cur}). Run this in a terminal to upgrade:`,
+        upToDate: (v) => `Up to date (${v}) ✓`,
+        projectNote: 'Per-project override: place .dsh-livedocs.json in the project root (same-named fields win over the global settings here; the API key is a credential and is global-only).',
+        cancel: 'Cancel',
+        confirmDelete: 'Delete',
+        help: 'Help',
+        c7what: 'Context7 is a cloud index of docs for 10,000+ open-source libraries (by Upstash).',
+        c7how: 'This plugin fetches docs directly from llms.txt / GitHub — free, no sign-up. Only when both sources miss does a configured key enable the Context7 fallback, improving coverage for niche libraries. Empty means never used.',
+        c7site: 'Website: ',
+        c7keys: 'Get & manage keys (ctx7sk…): ',
+        c7keysDoc: 'API Keys docs',
+        c7dash: 'Free signup: ',
+      },
+    }
+
     // ---------------------------------------------------------------- styles
     const css = {
       card: { border: '0.5px solid var(--dsw-alias-border-l2, #e2e2e2)', borderRadius: 12, overflow: 'hidden', listStyle: 'none' },
@@ -209,7 +353,7 @@ window.__ModuleLoader__.load({
         onMouseLeave: () => setOpen(false),
         onClick: (e) => { e.stopPropagation(); setOpen(!open) },
       },
-        h('span', { style: css.helpIcon, 'aria-label': '帮助' }, '?'),
+        h('span', { style: css.helpIcon, 'aria-label': props['aria-label'] ?? '?' }, '?'),
         open ? h('span', { style: css.helpBubble }, ...(props.children ?? [])) : null,
       )
     }
@@ -262,7 +406,7 @@ window.__ModuleLoader__.load({
           h('div', { style: css.dialogTitle }, props.title),
           h('div', { style: css.dialogBody }, props.body),
           h('div', { style: css.dialogActions },
-            h('button', { type: 'button', style: css.button, onClick: props.onCancel }, '取消'),
+            h('button', { type: 'button', style: css.button, onClick: props.onCancel }, props.cancelLabel ?? '取消'),
             h('button', {
               type: 'button',
               style: { ...css.button, ...css.danger },
@@ -275,6 +419,7 @@ window.__ModuleLoader__.load({
 
     // ---------------------------------------------------------- custom docs
     function CustomDocs(props) {
+      const t = props.t
       const [name, setName] = useState('')
       const [url, setUrl] = useState('')
       const [version, setVersion] = useState('')
@@ -290,8 +435,8 @@ window.__ModuleLoader__.load({
         setName(''); setUrl(''); setVersion('')
       }
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-        h('span', { style: css.sectionTitle }, '自定义文档源'),
-        h('span', { style: css.note }, '按库名命中的私有文档（llms.txt 链接），优先于 npm 解析链。'),
+        h('span', { style: css.sectionTitle }, t('customDocs')),
+        h('span', { style: css.note }, t('customDocsNote')),
         docs.map((doc) =>
           h('div', { key: doc.name, style: css.docRow },
             h('div', { style: css.grow },
@@ -301,18 +446,18 @@ window.__ModuleLoader__.load({
             h('button', {
               type: 'button', style: { ...css.button, ...css.danger },
               onClick: () => props.confirm(
-                '删除自定义文档源',
-                `确定删除 ${doc.name} 的文档源吗？`,
+                t('removeDocTitle'),
+                t('removeDocBody')(doc.name),
                 () => props.onChange(docs.filter((d) => d.name !== doc.name)),
               ),
-            }, '移除'),
+            }, t('remove')),
           ),
         ),
         h('div', { style: { display: 'flex', gap: 6 } },
-          h('input', { style: { ...css.textInput, flex: 2 }, placeholder: '库名，如 my-lib', value: name, onChange: (e) => setName(e.target.value) }),
+          h('input', { style: { ...css.textInput, flex: 2 }, placeholder: t('customDocsName'), value: name, onChange: (e) => setName(e.target.value) }),
           h('input', { style: { ...css.textInput, flex: 4 }, placeholder: 'https://…/llms.txt', value: url, onChange: (e) => setUrl(e.target.value) }),
-          h('input', { style: { ...css.textInput, flex: 1 }, placeholder: '版本(可空)', value: version, onChange: (e) => setVersion(e.target.value) }),
-          h('button', { type: 'button', style: css.button, onClick: add }, '添加'),
+          h('input', { style: { ...css.textInput, flex: 1 }, placeholder: t('customDocsVersion'), value: version, onChange: (e) => setVersion(e.target.value) }),
+          h('button', { type: 'button', style: css.button, onClick: add }, t('add')),
         ),
       )
     }
@@ -321,10 +466,11 @@ window.__ModuleLoader__.load({
     // Checks the npm registry for a newer plugin release (Host side does the
     // network call; the card only renders the state machine).
     function UpdatePanel(props) {
+      const t = props.t
       const [state, setState] = useState({ phase: 'idle', result: null, error: null })
       const check = async () => {
         if (!props.remoteApi.ready()) {
-          setState({ phase: 'error', result: null, error: '远程服务不可用（请确认插件已加载并重启 dsh web）' })
+          setState({ phase: 'error', result: null, error: t('remoteDown') })
           return
         }
         setState({ phase: 'checking', result: null, error: null })
@@ -343,21 +489,21 @@ window.__ModuleLoader__.load({
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         h('div', { style: css.row },
           h('div', { style: css.label },
-            h('span', null, '插件更新'),
+            h('span', null, t('updateTitle')),
             h('span', { style: css.labelHint },
-              r?.current ? `当前版本 ${r.current} · 对比 npm 最新发布` : '对比 npm registry 上的最新发布'),
+              r?.current ? t('updateHint')(r.current) : t('updateHintIdle')),
           ),
           h('button', {
             type: 'button', style: css.button, disabled: state.phase === 'checking', onClick: check,
-          }, state.phase === 'checking' ? '检查中…' : '检查更新'),
+          }, state.phase === 'checking' ? t('checking') : t('checkUpdate')),
         ),
         state.phase === 'error'
-          ? h('span', { style: css.error }, `检查失败：${state.error}（可稍后重试，或检查网络）`)
+          ? h('span', { style: css.error }, t('updateFailed')(state.error))
           : null,
         state.phase === 'done' && r
           ? r.updateAvailable
             ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-              h('span', { style: css.note }, `发现新版本 ${r.latest}（当前 ${r.current}）。在终端执行以下命令完成升级：`),
+              h('span', { style: css.note }, t('updateAvailable')(r.latest, r.current)),
               h('code', {
                 style: {
                   fontSize: 12, padding: '6px 10px', borderRadius: 6, userSelect: 'all',
@@ -366,7 +512,7 @@ window.__ModuleLoader__.load({
                 },
               }, r.command),
             )
-            : h('span', { style: css.note }, `已是最新版本（${r.latest ?? r.current}）✓`)
+            : h('span', { style: css.note }, t('upToDate')(r.latest ?? r.current))
           : null,
       )
     }
@@ -374,12 +520,13 @@ window.__ModuleLoader__.load({
     // ----------------------------------------------------------- cache panel
     const PAGE = 20 // batch size for incremental rendering
     function CachePanel(props) {
+      const t = props.t
       const [state, setState] = useState({ phase: 'idle', entries: [], totalBytes: 0, error: null })
       const [filter, setFilter] = useState('')
       const [shown, setShown] = useState(PAGE)
       const load = async () => {
         if (!props.remoteApi.ready()) {
-          setState({ phase: 'error', entries: [], totalBytes: 0, error: '远程服务不可用（请确认插件已加载并重启 dsh web）' })
+          setState({ phase: 'error', entries: [], totalBytes: 0, error: t('remoteDown') })
           return
         }
         setState((s) => ({ ...s, phase: 'loading', error: null }))
@@ -393,8 +540,8 @@ window.__ModuleLoader__.load({
       }
       const remove = (entry) => {
         props.confirm(
-          '移除缓存文档',
-          `确定移除 ${entry.library}@${entry.version} 的缓存吗？下次查询会重新拉取。`,
+          t('removeCacheTitle'),
+          t('removeCacheBody')(entry.library, entry.version),
           async () => {
             try {
               await props.remoteApi.remove(entry.key)
@@ -406,8 +553,8 @@ window.__ModuleLoader__.load({
       }
       const clear = () => {
         props.confirm(
-          '清空全部缓存',
-          `确定清空全部 ${state.entries.length} 条缓存吗？下次查询会重新拉取。`,
+          t('clearCacheTitle'),
+          t('clearCacheBody')(state.entries.length),
           async () => {
             try {
               await props.remoteApi.clear()
@@ -424,26 +571,26 @@ window.__ModuleLoader__.load({
       const batch = visible.slice(0, shown)
       return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
         h('div', { style: css.row },
-          h('span', { style: css.sectionTitle }, '已缓存文档'),
+          h('span', { style: css.sectionTitle }, t('cacheTitle')),
           h('div', { style: { display: 'flex', gap: 6 } },
             state.phase === 'ready' && state.entries.length > 0
-              ? h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: clear }, '清空全部')
+              ? h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: clear }, t('clearAll'))
               : null,
             h('button', { type: 'button', style: css.button, onClick: load },
-              state.phase === 'loading' ? '加载中…' : state.phase === 'idle' ? '查看' : '刷新'),
+              state.phase === 'loading' ? t('loadingDots') : state.phase === 'idle' ? t('view') : t('refresh')),
           ),
         ),
         state.error ? h('span', { style: css.error }, state.error) : null,
         state.phase === 'ready'
           ? state.entries.length === 0
-            ? h('span', { style: css.note }, '缓存为空。')
+            ? h('span', { style: css.note }, t('cacheEmpty'))
             : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
               h('div', { style: css.row },
                 h('span', { style: css.note },
-                  keyword ? `命中 ${visible.length} / ${state.entries.length} 条` : `${state.entries.length} 条，共 ${fmtBytes(state.totalBytes)}`),
+                  keyword ? t('cacheHit')(visible.length, state.entries.length) : t('cacheCount')(state.entries.length, fmtBytes(state.totalBytes))),
                 h('input', {
                   style: { ...css.textInput, flex: '0 1 180px' },
-                  placeholder: '按包名过滤…',
+                  placeholder: t('filterPlaceholder'),
                   value: filter,
                   onChange: (e) => { setFilter(e.target.value); setShown(PAGE) },
                 }),
@@ -454,22 +601,22 @@ window.__ModuleLoader__.load({
                     h('div', { style: css.grow },
                       h('div', { style: css.docName },
                         `${entry.library}@${entry.version}`,
-                        entry.stale ? h('span', { style: { ...css.docMeta, marginLeft: 6 } }, '(已过期)') : null,
+                        entry.stale ? h('span', { style: { ...css.docMeta, marginLeft: 6 } }, t('stale')) : null,
                       ),
                       h('div', { style: css.docMeta },
-                        `${fmtBytes(entry.size)} · 缓存于 ${fmtTime(entry.fetchedAt)} · ${entry.sourceUrl}`,
+                        t('cachedAt')(fmtBytes(entry.size), fmtTime(entry.fetchedAt), entry.sourceUrl),
                       ),
                     ),
-                    h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: () => remove(entry) }, '移除'),
+                    h('button', { type: 'button', style: { ...css.button, ...css.danger }, onClick: () => remove(entry) }, t('remove')),
                   ),
                 ),
-                batch.length === 0 ? h('div', { style: { ...css.note, padding: '8px 0' } }, '没有匹配的条目。') : null,
+                batch.length === 0 ? h('div', { style: { ...css.note, padding: '8px 0' } }, t('noMatch')) : null,
               ),
               visible.length > batch.length
                 ? h('button', {
                   type: 'button', style: css.button,
                   onClick: () => setShown(shown + PAGE),
-                }, `显示更多（还有 ${visible.length - batch.length} 条）`)
+                }, t('showMore')(visible.length - batch.length))
                 : null,
             )
           : null,
@@ -492,6 +639,8 @@ window.__ModuleLoader__.load({
       }
       const value = snap.value ?? {}
       const writable = snap.writable !== false
+      const locale = value.locale === 'en' ? 'en' : 'zh'
+      const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
       const set = (field, next) => {
         setError(null)
         Promise.resolve(scope.set(field, next)).catch((err) => setError(String(err?.message ?? err)))
@@ -512,69 +661,82 @@ window.__ModuleLoader__.load({
           onClick: () => setOpen(!open),
         },
           h('span', { style: css.name }, 'Live Docs (dsh-livedocs)'),
-          h('span', { style: css.desc }, '实时库文档：版本钉定、依赖注入、文档预热与自定义文档源'),
+          h('span', { style: css.desc }, t('cardDesc')),
         ),
         open
           ? h('div', { style: css.body },
-            !writable ? h('p', { style: css.error }, '当前部署的设置文档为只读。') : null,
-            snap.status !== 'ready' ? h('span', { style: css.note }, '设置加载中…') : null,
-            error ? h('p', { style: css.error }, `保存失败：${error}`) : null,
+            !writable ? h('p', { style: css.error }, t('readOnly')) : null,
+            snap.status !== 'ready' ? h('span', { style: css.note }, t('loading')) : null,
+            error ? h('p', { style: css.error }, `${t('saveFailed')}：${error}`) : null,
+            h('div', { style: css.row },
+              h('div', { style: css.label },
+                h('span', null, t('language')),
+                h('span', { style: css.labelHint }, t('languageHint')),
+              ),
+              h('select', {
+                style: { ...css.input, width: 110 },
+                value: locale,
+                disabled: !writable,
+                onChange: (e) => set('locale', e.target.value),
+              },
+                h('option', { value: 'zh' }, '中文'),
+                h('option', { value: 'en' }, 'English'),
+              ),
+            ),
             h(Toggle, {
-              label: '启用 dsh-livedocs', hint: '总开关：关闭后工具与注入全部停用',
+              label: t('enabled'), hint: t('enabledHint'),
               value: value.enabled !== false, disabled: !writable,
               onChange: (v) => set('enabled', v),
             }),
             h(Toggle, {
-              label: '依赖上下文注入', hint: '把项目依赖（含安装版本）注入系统提示',
+              label: t('injectDeps'), hint: t('injectDepsHint'),
               value: value.injectDeps !== false, disabled: !writable,
               onChange: (v) => set('injectDeps', v),
             }),
             h(Toggle, {
-              label: '依赖文档预热', hint: '会话开始时后台拉取头部依赖的文档',
+              label: t('prefetch'), hint: t('prefetchHint'),
               value: value.prefetch !== false, disabled: !writable,
               onChange: (v) => set('prefetch', v),
             }),
             h(Toggle, {
-              label: '嵌入式技能（自动触发）', hint: '在模型的技能目录注册 livedocs 技能，写第三方库代码时自动加载使用规则',
+              label: t('skill'), hint: t('skillHint'),
               value: value.skill !== false, disabled: !writable,
               onChange: (v) => set('skill', v),
             }),
             h(NumberField, {
-              label: '预热数量 Top N', hint: '每个项目预热的依赖个数（0–10）',
+              label: t('prefetchTopN'), hint: t('prefetchTopNHint'),
               value: value.prefetchTopN ?? 3, min: 0, max: 10, disabled: !writable,
               onChange: (v) => set('prefetchTopN', v),
             }),
             h(NumberField, {
-              label: '缓存有效期（天）', hint: '超过后重新拉取（1–90）',
+              label: t('cacheTtl'), hint: t('cacheTtlHint'),
               value: value.cacheTtlDays ?? 7, min: 1, max: 90, disabled: !writable,
               onChange: (v) => set('cacheTtlDays', v),
             }),
             h(NumberField, {
-              label: '缓存上限（条）', hint: '超出后按最久未使用自动淘汰（1–1000）',
+              label: t('cacheMax'), hint: t('cacheMaxHint'),
               value: value.cacheMaxEntries ?? 200, min: 1, max: 1000, disabled: !writable,
               onChange: (v) => set('cacheMaxEntries', v),
             }),
             h(KeyField, {
-              label: 'Context7 API Key（可选兜底源）',
-              help: h(HelpTip, null,
-                h('span', null, 'Context7 是收录 10000+ 开源库文档的云端索引服务（Upstash 出品）。'),
-                h('span', null, '本插件默认从 llms.txt / GitHub 直接拉文档，免费且无需注册；只有当某个库这两种来源都拉不到时，填了 Key 才会自动回退到 Context7 查询，提高小众库的命中率。留空则完全不启用。'),
+              label: t('context7'),
+              help: h(HelpTip, { 'aria-label': t('help') },
+                h('span', null, t('c7what')),
+                h('span', null, t('c7how')),
                 h('span', null,
-                  '官网：',
+                  t('c7site'),
                   h('a', { href: 'https://context7.com', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com'),
                 ),
                 h('span', null,
-                  'Key 申请与管理（ctx7sk 开头）：',
-                  h('a', { href: 'https://context7.com/docs/howto/api-keys', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'API Keys 文档'),
+                  t('c7keys'),
+                  h('a', { href: 'https://context7.com/docs/howto/api-keys', target: '_blank', rel: 'noreferrer', style: css.helpLink }, t('c7keysDoc')),
                 ),
                 h('span', null,
-                  '免费申请入口：',
+                  t('c7dash'),
                   h('a', { href: 'https://context7.com/dashboard', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com/dashboard'),
                 ),
               ),
-              hint: value.context7Key?.trim()
-                ? '已配置：无 llms.txt/README 覆盖的库将回退到 Context7 云端索引'
-                : '留空关闭；在 context7.com/dashboard 免费申请（ctx7sk 开头）',
+              hint: value.context7Key?.trim() ? t('context7HintOn') : t('context7HintOff'),
               value: value.context7Key ?? '', disabled: !writable,
               onChange: (v) => set('context7Key', v),
             }),
@@ -582,17 +744,19 @@ window.__ModuleLoader__.load({
               value: value.customDocs,
               onChange: (v) => set('customDocs', v),
               confirm: askConfirm,
+              t,
             }),
-            h(UpdatePanel, { remoteApi }),
-            h(CachePanel, { remoteApi, confirm: askConfirm }),
-            h('span', { style: css.note },
-              '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置；API Key 属凭据，仅支持全局设置，不接受项目级覆盖）。'),
+            h(UpdatePanel, { remoteApi, t }),
+            h(CachePanel, { remoteApi, confirm: askConfirm, t }),
+            h('span', { style: css.note }, t('projectNote')),
           )
           : null,
         confirm
           ? h(ConfirmDialog, {
             title: confirm.title,
             body: confirm.body,
+            cancelLabel: t('cancel'),
+            confirmLabel: t('confirmDelete'),
             onCancel: () => setConfirm(null),
             onConfirm: runConfirm,
           })

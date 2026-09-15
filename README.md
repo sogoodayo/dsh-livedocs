@@ -91,6 +91,7 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M4：可选 Context7 云端索引兜底（设置卡片填 Key 即启用，默认关闭；版本钉定 + 401/429 显式报错；Key 仅全局设置，项目文件不可覆盖）
 - [x] M5：嵌入式 skill 自动触发（`ctx.skills` 运行时注册 `livedocs` 技能，目录描述常驻、正文按需加载；设置卡片可关；与总开关联动）
 - [x] M6：设置卡片「检查更新」：Host 侧查询 npm registry 最新发布并对比运行版本，发现新版本时给出升级命令
+- [x] M7：设置卡片中英双语切换（`locale: zh/en`，默认中文，即时生效）
 
 ## 兼容性
 
