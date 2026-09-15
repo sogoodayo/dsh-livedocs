@@ -55,9 +55,13 @@ dsh plugin --profile web add github:sogoodayo/dsh-livedocs
 
 ## 截图
 
-| 设置卡片（全部配置可视化） | 缓存文档管理 | `/livedocs` 斜杠命令 |
-|---|---|---|
-| ![设置卡片](docs/images/settings-card.png) | ![缓存文档管理](docs/images/cache-panel.png) | ![斜杠命令](docs/images/docs-command.png) |
+| 设置卡片（中文，默认） | Settings card (English) |
+|---|---|
+| ![设置卡片](docs/images/settings-card.png) | ![Settings card](docs/images/settings-card-en.png) |
+
+| 缓存文档管理 | `/livedocs` 斜杠命令 |
+|---|---|
+| ![缓存文档管理](docs/images/cache-panel.png) | ![斜杠命令](docs/images/docs-command.png) |
 
 ## 工作原理
 
