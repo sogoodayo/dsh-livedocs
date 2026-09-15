@@ -83,8 +83,13 @@ export function apply(ctx) {
   // without the typert code generator. If the web API stack is absent the
   // service simply has no callers.
   try {
+    // Own version for the update check — read from the plugin's package.json.
+    let selfVersion = '0.0.0-dev'
+    try {
+      selfVersion = JSON.parse(readFileSync(join(pluginDir, 'package.json'), 'utf8')).version ?? selfVersion
+    } catch { /* dev check falls back to the placeholder */ }
     // eslint-disable-next-line no-new
-    new LivedocsController(ctx, { cache })
+    new LivedocsController(ctx, { cache, selfVersion })
   } catch (err) {
     ctx.logger?.warn?.(`dsh-livedocs: remote service unavailable: ${err?.message ?? err}`)
   }

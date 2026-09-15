@@ -58,6 +58,15 @@ window.__ModuleLoader__.load({
           parameters: [],
           result: { mode: 'src-json' },
         },
+        {
+          id: 'dsh-livedocs#livedocs/checkUpdate',
+          service: 'livedocsController',
+          namespace: NS,
+          method: 'checkUpdate',
+          invocation: { kind: 'direct' },
+          parameters: [],
+          result: { mode: 'src-json' },
+        },
       ],
     }
 
@@ -308,6 +317,60 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // ---------------------------------------------------------- update panel
+    // Checks the npm registry for a newer plugin release (Host side does the
+    // network call; the card only renders the state machine).
+    function UpdatePanel(props) {
+      const [state, setState] = useState({ phase: 'idle', result: null, error: null })
+      const check = async () => {
+        if (!props.remoteApi.ready()) {
+          setState({ phase: 'error', result: null, error: '远程服务不可用（请确认插件已加载并重启 dsh web）' })
+          return
+        }
+        setState({ phase: 'checking', result: null, error: null })
+        try {
+          const result = await props.remoteApi.checkUpdate()
+          if (result?.error) {
+            setState({ phase: 'error', result, error: result.error })
+          } else {
+            setState({ phase: 'done', result, error: null })
+          }
+        } catch (err) {
+          setState({ phase: 'error', result: null, error: String(err?.message ?? err) })
+        }
+      }
+      const r = state.result
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { style: css.row },
+          h('div', { style: css.label },
+            h('span', null, '插件更新'),
+            h('span', { style: css.labelHint },
+              r?.current ? `当前版本 ${r.current} · 对比 npm 最新发布` : '对比 npm registry 上的最新发布'),
+          ),
+          h('button', {
+            type: 'button', style: css.button, disabled: state.phase === 'checking', onClick: check,
+          }, state.phase === 'checking' ? '检查中…' : '检查更新'),
+        ),
+        state.phase === 'error'
+          ? h('span', { style: css.error }, `检查失败：${state.error}（可稍后重试，或检查网络）`)
+          : null,
+        state.phase === 'done' && r
+          ? r.updateAvailable
+            ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+              h('span', { style: css.note }, `发现新版本 ${r.latest}（当前 ${r.current}）。在终端执行以下命令完成升级：`),
+              h('code', {
+                style: {
+                  fontSize: 12, padding: '6px 10px', borderRadius: 6, userSelect: 'all',
+                  background: 'var(--dsw-alias-bg-secondary, rgba(127,127,127,0.12))',
+                  border: '0.5px solid var(--dsw-alias-border-l2, #e2e2e2)',
+                },
+              }, r.command),
+            )
+            : h('span', { style: css.note }, `已是最新版本（${r.latest ?? r.current}）✓`)
+          : null,
+      )
+    }
+
     // ----------------------------------------------------------- cache panel
     const PAGE = 20 // batch size for incremental rendering
     function CachePanel(props) {
@@ -520,6 +583,7 @@ window.__ModuleLoader__.load({
               onChange: (v) => set('customDocs', v),
               confirm: askConfirm,
             }),
+            h(UpdatePanel, { remoteApi }),
             h(CachePanel, { remoteApi, confirm: askConfirm }),
             h('span', { style: css.note },
               '项目级覆盖：在项目根目录放置 .dsh-livedocs.json（同名字段优先于此处全局设置；API Key 属凭据，仅支持全局设置，不接受项目级覆盖）。'),
@@ -579,6 +643,7 @@ window.__ModuleLoader__.load({
         list: () => unwrap(ctx.get('remote.livedocs').listDocs()),
         remove: (key) => unwrap(ctx.get('remote.livedocs').removeDoc(key)),
         clear: () => unwrap(ctx.get('remote.livedocs').clearDocs()),
+        checkUpdate: () => unwrap(ctx.get('remote.livedocs').checkUpdate()),
       }
 
       ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
