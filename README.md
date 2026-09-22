@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/dsh-livedocs)](https://www.npmjs.com/package/dsh-livedocs)
 [![DSH Plugin](https://img.shields.io/badge/DSH-plugin-blue)](https://github.com/deepseek-ai/deepseek-harness)
+[![Awesome DSH](https://img.shields.io/badge/awesome-dsh--plugin-orange)](https://github.com/DshMarketPlace/awesome-dsh-plugin)
 [![llms.txt](https://img.shields.io/badge/docs-llms.txt-green)](https://llmstxt.org)
 
 Version-pinned live library docs for **DeepSeek Harness (DSH)** — kill hallucinated APIs.
