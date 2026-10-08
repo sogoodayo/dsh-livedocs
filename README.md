@@ -97,6 +97,7 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M5：嵌入式 skill 自动触发（`ctx.skills` 运行时注册 `livedocs` 技能，目录描述常驻、正文按需加载；设置卡片可关；与总开关联动）
 - [x] M6：设置卡片「检查更新」：Host 侧查询 npm registry 最新发布并对比运行版本，发现新版本时给出升级命令
 - [x] M7：设置卡片中英双语切换（`locale: zh/en`，默认中文，即时生效）
+- [x] M8：适配 DSH 0.1.7+ 插件管理契约——设置订阅随插件实例销毁（运行时启停/卸载无泄漏）；声明 DSH 版本兼容范围（`peerDependencies`，安装与启动时校验）；插件管理页多语言标题/描述（`locale/*.json`）+ 图标（`icon.svg`）
 
 ## 兼容性
 

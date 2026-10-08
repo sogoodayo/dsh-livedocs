@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Live Docs",
+    "description": "Fetches version-pinned official docs for third-party libraries so the agent reads real APIs before writing code."
+  }
+}

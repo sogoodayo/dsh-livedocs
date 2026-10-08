@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Live Docs",
+    "description": "为第三方库拉取版本钉定的官方实时文档，让 Agent 写代码前先读真实 API，消灭幻觉 API。"
+  }
+}
