@@ -55,3 +55,6 @@ _pack-cache/
 # npm pack artifacts (release tarballs stay local)
 *.tgz
 
+
+# 本地任务交接文件（含本机路径与凭证位置，不入库）
+任务交接文件.md
