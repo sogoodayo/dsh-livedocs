@@ -3,14 +3,15 @@
 // Hand-written lazy-CJS factory bundle in the DSH client module format
 // (window.__ModuleLoader__.load). No build step: the shell's shared module
 // table provides react / cordis / slots primitives, and cross-plugin
-// collaboration goes through cordis services (slots, settingsScope, remote),
+// collaboration goes through cordis services (slots, configForms, remote),
 // never through value imports — that is the client bundle purity rule.
 //
-// What the card edits lives in the `livedocs` settings namespace (Host side:
-// lib/config.js). What the card shows live (cache entries) rides the
-// `livedocs` Typert remote namespace, mounted here from hand-written
-// descriptors — the gateway accepts src-json results and the passthrough
-// parameter codec below satisfies the client-side strict-codec check.
+// What the card edits lives in the `livedocs` config entry (Host side:
+// lib/config.js, exported as Config; the settings UI projects it into a form
+// and exposes it through the configForms service). What the card shows live
+// (cache entries) rides the `livedocs` Typert remote namespace, mounted here
+// from hand-written descriptors — the gateway accepts src-json results and
+// the passthrough parameter codec below satisfies the strict-codec check.
 
 window.__ModuleLoader__.load({
   id: 'dsh-livedocs',
@@ -643,7 +644,11 @@ window.__ModuleLoader__.load({
       const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
       const set = (field, next) => {
         setError(null)
-        Promise.resolve(scope.set(field, next)).catch((err) => setError(String(err?.message ?? err)))
+        // configForms.set resolves false when the Host refuses the write
+        // (validation, revision fencing); transport failures reject.
+        Promise.resolve(scope.set(field, next))
+          .then((ok) => { if (ok === false) setError(t('saveFailed')) })
+          .catch((err) => setError(String(err?.message ?? err)))
       }
       // Destructive actions must pass through the confirm dialog.
       const askConfirm = (title, body, action) => setConfirm({ title, body, action })
@@ -765,9 +770,12 @@ window.__ModuleLoader__.load({
     }
 
     // ---------------------------------------------------------------- apply
-    exports.inject = ['slots', 'settingsScope', 'remote']
+    exports.inject = ['slots', 'configForms', 'remote']
     exports.apply = function apply(ctx) {
-      const scope = ctx.settingsScope.bind({ namespace: NS })
+      // The settings entry whose schema the Host plugin exports as Config.
+      // getSnapshot()/subscribe()/set()/unset() — set() resolves false when
+      // the Host refuses a write instead of throwing.
+      const form = ctx.configForms.get(NS)
 
       // Mount the hand-written contribution so the card can reach the Host
       // cache. Lifetime follows this fiber; failure just hides remote actions.
@@ -810,11 +818,20 @@ window.__ModuleLoader__.load({
         checkUpdate: () => unwrap(ctx.get('remote.livedocs').checkUpdate()),
       }
 
-      ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-        name: 'settings.plugin.item',
-        key: NS,
-        inject: () => ({ scope, remoteApi }),
-      }, LivedocsCard))
+      // Register into the Plugins page's `plugins.item` slot only while the
+      // Host actually serves our namespace — a deployment that never composed
+      // the plugin shows no trace of the card.
+      ctx.effect(() =>
+        ctx.configForms.whileServed([NS], () =>
+          ctx.slots.inject('plugins.item', () => ctx.slots.register({
+            name: 'plugins.item',
+            id: NS,
+            order: 30,
+            label: () => 'Live Docs (dsh-livedocs)',
+            inject: () => ({ scope: form, remoteApi }),
+          }, LivedocsCard)),
+        ),
+      'dsh-livedocs: settings card')
     }
 
     return module.exports

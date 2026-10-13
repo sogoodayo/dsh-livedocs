@@ -98,10 +98,11 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M6：设置卡片「检查更新」：Host 侧查询 npm registry 最新发布并对比运行版本，发现新版本时给出升级命令
 - [x] M7：设置卡片中英双语切换（`locale: zh/en`，默认中文，即时生效）
 - [x] M8：适配 DSH 0.1.7+ 插件管理契约——设置订阅随插件实例销毁（运行时启停/卸载无泄漏）；声明 DSH 版本兼容范围（`peerDependencies`，安装与启动时校验）；插件管理页多语言标题/描述（`locale/*.json`）+ 图标（`icon.svg`）
+- [x] M9：迁移到 DSH 0.2.x 契约——Host 侧导出 `Config`（schemastery schema，cordis 校验并把解析结果传入 `apply(ctx, config)`，URL/Key 校验内化为 schema `.pattern()`，Key 字段 `.role('secret')` 脱敏）；Client 侧改用 `configForms` 服务（`get`/`whileServed`）与 `plugins.item` 槽位
 
 ## 兼容性
 
-已在 DSH Developer Preview（web profile）的插件契约下开发：`inject: ['tools']` + `defineTool`（`@deepseek-ai/dsh-tools`）。DSH 处于预览期，若宿主升级导致 inject 契约变化，请提 issue。
+要求 **DSH ≥ 0.2.0-rc.1**（`peerDependencies` 声明，安装与启动时校验）。0.2.x 移除了客户端 `settingsScope` 服务：本插件 0.2.0 起改为导出 `Config` schema + `configForms` 契约，**不再兼容 0.1.x**；0.1.x 用户请停留在 dsh-livedocs 0.1.9。
 
 设计与调研依据见 [docs/feasibility.md](docs/feasibility.md)。
 

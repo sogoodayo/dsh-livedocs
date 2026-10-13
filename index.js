@@ -1,11 +1,18 @@
 // dsh-livedocs — version-pinned live library docs for DeepSeek Harness.
 // Pure ESM, no build step. Loaded as a Cordis bundle (see cordis.patch.yml).
 //
-// DSH contracts used here (verified against official docs & Discussion #961):
+// DSH contracts used here (0.2.x):
+//   - export const Config = <schemastery schema> → cordis validates user
+//     settings against it and passes the resolved value to apply(ctx, config);
+//     the settings UI (插件 → 插件配置) projects the same schema into a form
 //   - export const inject = ['tools']  → apply() runs after the tool registry is ready
 //   - defineTool from '@deepseek-ai/dsh-tools'
 //   - object output schemas MUST set additionalProperties: true
 //   - optional params simply omit `required`
+//
+// Config changes are applied by the host (the settings card edits the same
+// schema the host validates against); there is no plugin-side settings watch
+// in 0.2.x — apply() consumes the resolved snapshot.
 
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { join, dirname } from 'node:path'
@@ -17,7 +24,7 @@ import { resolveLibrary, fetchDocs, selectChunks } from './lib/sources.js'
 import { fetchDocsViaContext7 } from './lib/context7.js'
 import { detectInstalledVersion } from './lib/lockfile.js'
 import { findProjectRoot, listProjectDeps, formatDepsBlock } from './lib/project.js'
-import { createConfigProvider, resolveProjectConfig } from './lib/config.js'
+import { ConfigSchema, mergeWithDefaults, resolveProjectConfig } from './lib/config.js'
 import { prefetchDeps } from './lib/prefetch.js'
 import { rankDeps } from './lib/registry.js'
 import { createSkillRegistration } from './lib/skill.js'
@@ -26,55 +33,44 @@ import { LivedocsController } from './lib/remote.js'
 export const name = 'dsh-livedocs'
 export const inject = ['tools']
 
+/** User-facing config schema — cordis validates settings and fills defaults. */
+export const Config = ConfigSchema
+
 const pluginDir = dirname(fileURLToPath(import.meta.url))
 
 const DAY_MS = 24 * 3600 * 1000
 
-export function apply(ctx) {
+export function apply(ctx, config) {
   // Cache lives in the DSH user home, not the plugin directory: the plugin
   // dir may be read-only or wiped on upgrade when installed via npm, and one
   // shared cache serves every profile and project.
   const cacheHome = join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'livedocs')
   const cache = new DocsCache(join(cacheHome, 'cache'))
 
-  // Global settings (设置 → 插件 → 插件配置) with per-project override.
-  // When the settings service is absent the provider serves schema defaults.
-  const configProvider = createConfigProvider(ctx)
-  const globalConfig = () => configProvider.get()
-  const configFor = (projectDir) => resolveProjectConfig(configProvider.get(), projectDir).config
+  // Global config resolved by the host from user settings, with per-project
+  // override. mergeWithDefaults keeps tests/dev loaders safe when no config
+  // argument is supplied.
+  const resolved = mergeWithDefaults(config)
+  const globalConfig = () => resolved
+  const configFor = (projectDir) => resolveProjectConfig(resolved, projectDir).config
 
-  // Live cache TTL: the settings card edits take effect without a restart.
-  const applyTtl = (cfg) => {
-    cache.ttlMs = Math.max(1, cfg.cacheTtlDays ?? 7) * DAY_MS
-    cache.maxEntries = Math.max(1, cfg.cacheMaxEntries ?? 200)
-  }
-  applyTtl(globalConfig())
-  configProvider.watch(applyTtl)
+  cache.ttlMs = Math.max(1, resolved.cacheTtlDays ?? 7) * DAY_MS
+  cache.maxEntries = Math.max(1, resolved.cacheMaxEntries ?? 200)
 
   // ----------------------------------------------------- embedded skill (M5)
   // Register the livedocs skill into the host's skill registry so the agent
   // auto-loads usage rules when it works with third-party libraries — no
   // docs_setup run required. Optional integration like systemPrompt/commands:
-  // profiles without the skill service simply skip. Reacts live to the
-  // master switch and the `skill` toggle.
+  // profiles without the skill service simply skip.
   ctx.inject(['skills'], (c) => {
+    if (resolved.enabled === false || resolved.skill === false) return
     let dispose = null
-    const sync = (cfg) => {
-      const want = cfg.enabled !== false && cfg.skill !== false
-      if (want && !dispose) {
-        try {
-          dispose = c.skills.register(createSkillRegistration())
-          ctx.logger?.info?.('dsh-livedocs: skill "livedocs" registered')
-        } catch (err) {
-          ctx.logger?.warn?.(`dsh-livedocs: skill registration failed: ${err?.message ?? err}`)
-        }
-      } else if (!want && dispose) {
-        dispose()
-        dispose = null
-      }
+    try {
+      dispose = c.skills.register(createSkillRegistration())
+      ctx.logger?.info?.('dsh-livedocs: skill "livedocs" registered')
+    } catch (err) {
+      ctx.logger?.warn?.(`dsh-livedocs: skill registration failed: ${err?.message ?? err}`)
     }
-    sync(globalConfig())
-    configProvider.watch(sync)
     ctx.on('dispose', () => { dispose?.(); dispose = null })
   })
 
@@ -370,23 +366,18 @@ export function apply(ctx) {
         return { kind: 'error', text: `docs query failed: ${err?.message ?? err}` }
       }
     }
-    // Re-register on language switch so the hint/description follow locale.
+    // Language comes from the resolved config (0.2.x has no plugin-side
+    // settings watch; a config edit is applied by the host).
     let dispose = null
-    const sync = (cfg) => {
-      dispose?.()
-      dispose = null
-      const en = cfg.locale === 'en'
-      dispose = c.commands.register({
-        name: 'livedocs',
-        description: en
-          ? 'Query live official docs for a library (pins the installed version, local cache) — dsh-livedocs plugin'
-          : '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
-        input: { hint: en ? '<library> [topic]' : '<库名> [主题]' },
-        handler,
-      })
-    }
-    sync(globalConfig())
-    configProvider.watch(sync)
+    const en = resolved.locale === 'en'
+    dispose = c.commands.register({
+      name: 'livedocs',
+      description: en
+        ? 'Query live official docs for a library (pins the installed version, local cache) — dsh-livedocs plugin'
+        : '查询库的实时官方文档（自动钉定项目安装版本、本地缓存）— dsh-livedocs 插件',
+      input: { hint: en ? '<library> [topic]' : '<库名> [主题]' },
+      handler,
+    })
     ctx.on('dispose', () => { dispose?.(); dispose = null })
   })
 

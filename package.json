@@ -1,6 +1,6 @@
 {
   "name": "dsh-livedocs",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "Version-pinned live library docs for DeepSeek Harness — kill hallucinated APIs.",
   "type": "module",
   "main": "index.js",
@@ -38,7 +38,7 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh": ">=0.1.5-rc.1 <0.3.0"
+    "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0"
   },
   "dsh": {
     "bundle": {
@@ -53,8 +53,8 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1",
-    "@deepseek-ai/dsh-typert-protocol": "^0.1.2-rc.1",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-typert-protocol": "^0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4"
   }
 }
