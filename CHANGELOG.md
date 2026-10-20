@@ -3,6 +3,16 @@
 All notable changes to dsh-livedocs. Format follows [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/);
 versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 
+## [0.2.1] - 2026-10-20
+
+### Fixed
+
+- 修正 DSH 0.2.x 下的设置卡片槽位：从 `plugins.item` 改为 `plugins.row.config`（键 `dsh-livedocs#livedocs`），
+  通过 `configForms` 的 `form` prop 读写配置，避免在 0.2.x Host 上因槽位/服务不匹配导致插件加载失败。
+- 恢复对 DSH 0.1.x 的向后兼容：当 Host 仍提供 `settingsScope` 服务时，继续使用旧版 `settings.plugin.item` 卡片。
+- 修复 `Config` schema 在旧版 schemastery 上调用 `.volatile()` 会丢失默认值的问题；改为运行时探测并跳过有缺陷的旧实现。
+- 重新启用插件侧配置变更监听（缓存 TTL、skill 注册、`/livedocs` 命令本地化），支持 0.2.x `internal/config` 事件与 0.1.x settings watch 双路径。
+
 ## [0.2.0] - 2026-10-13
 
 迁移到 DSH 0.2.x 插件契约。**破坏性变更：要求 DSH ≥ 0.2.0-rc.1；0.1.x 用户请停留在 0.1.9。**
@@ -12,7 +22,8 @@ versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 - Host 侧：导出 `Config`（schemastery schema），cordis 校验用户设置并把解析结果传入 `apply(ctx, config)`；
   移除客户端 settings 服务注册与全部插件侧 watch（0.2.x 删除了 `settingsScope` 服务）
 - Client 侧：`settingsScope` → `configForms` 服务（`get` / `whileServed`）；设置卡片槽位
-  `settings.plugin.item` → `plugins.item`（`id` / `order` / `label` 注册参数）
+  `settings.plugin.item` → `plugins.row.config`（键 `dsh-livedocs#livedocs`）
+- 保留 0.1.x 路径作向后兼容：`ctx.inject(['settingsScope'])` 仅在旧 Host 存在该服务时注册旧卡片
 - 校验内化为 schema：customDocs 仅接受 `https://` URL、Context7 Key 仅接受 `ctx7sk` 前缀（`.pattern()`）；
   Key 字段 `.role('secret')`（settings wire 自动脱敏）
 - 依赖对齐：`@deepseek-ai/dsh-tools` / `@deepseek-ai/dsh-typert-protocol` ^0.2.0-rc.2
@@ -94,6 +105,7 @@ versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 - remote 命名空间 RemoteResult 信封解包；缓存存储避开 proxy #private 字段；
   拒绝把 HTML 页面当文档；仓库 URL 去掉 fragment
 
+[0.2.1]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.7...v0.1.8

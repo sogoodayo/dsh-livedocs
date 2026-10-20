@@ -98,7 +98,7 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 - [x] M6：设置卡片「检查更新」：Host 侧查询 npm registry 最新发布并对比运行版本，发现新版本时给出升级命令
 - [x] M7：设置卡片中英双语切换（`locale: zh/en`，默认中文，即时生效）
 - [x] M8：适配 DSH 0.1.7+ 插件管理契约——设置订阅随插件实例销毁（运行时启停/卸载无泄漏）；声明 DSH 版本兼容范围（`peerDependencies`，安装与启动时校验）；插件管理页多语言标题/描述（`locale/*.json`）+ 图标（`icon.svg`）
-- [x] M9：迁移到 DSH 0.2.x 契约——Host 侧导出 `Config`（schemastery schema，cordis 校验并把解析结果传入 `apply(ctx, config)`，URL/Key 校验内化为 schema `.pattern()`，Key 字段 `.role('secret')` 脱敏）；Client 侧改用 `configForms` 服务（`get`/`whileServed`）与 `plugins.item` 槽位
+- [x] M9：迁移到 DSH 0.2.x 插件管理页契约——Host 侧导出 `Config`（schemastery schema，cordis 校验并把解析结果传入 `apply(ctx, config)`，URL/Key 校验内化为 schema `.pattern()`，Key 字段 `.role('secret')` 脱敏）；Client 侧改用 `configForms` 服务（`get`/`whileServed`）与 `plugins.row.config` 槽位（键 `dsh-livedocs#livedocs`），同时保留 0.1.x `settingsScope` + `settings.plugin.item` 路径作向后兼容
 
 ## 兼容性
 

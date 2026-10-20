@@ -1,17 +1,15 @@
-// dsh-livedocs browser half — settings card for 设置 → 插件 → 插件配置.
+// dsh-livedocs browser half — settings card for both DSH 0.1.x and 0.2.x.
 //
 // Hand-written lazy-CJS factory bundle in the DSH client module format
 // (window.__ModuleLoader__.load). No build step: the shell's shared module
 // table provides react / cordis / slots primitives, and cross-plugin
-// collaboration goes through cordis services (slots, configForms, remote),
-// never through value imports — that is the client bundle purity rule.
+// collaboration goes through cordis services, never through value imports.
 //
-// What the card edits lives in the `livedocs` config entry (Host side:
-// lib/config.js, exported as Config; the settings UI projects it into a form
-// and exposes it through the configForms service). What the card shows live
-// (cache entries) rides the `livedocs` Typert remote namespace, mounted here
-// from hand-written descriptors — the gateway accepts src-json results and
-// the passthrough parameter codec below satisfies the strict-codec check.
+// 0.1.x path: the card binds ctx.settingsScope and registers the legacy
+// `settings.plugin.item` slot.
+// 0.2.x path: the card registers a `plugins.row.config` entry keyed by
+// `dsh-livedocs#livedocs`, receives a configForms `form` prop, and edits the
+// namespace through form.mutate().
 
 window.__ModuleLoader__.load({
   id: 'dsh-livedocs',
@@ -23,6 +21,8 @@ window.__ModuleLoader__.load({
     const { useState, useSyncExternalStore } = React
 
     const NS = 'livedocs'
+    const PACKAGE_NAME = 'dsh-livedocs'
+    const ROW_KEY = `${PACKAGE_NAME}#${NS}`
 
     // ---- hand-written Typert contribution (client half of lib/remote.js) ----
     // The client gateway requires strict codecs on parameters and calls only
@@ -30,10 +30,10 @@ window.__ModuleLoader__.load({
     const passthrough = { parse: (value) => value }
     const jsonCodec = { mode: 'strict', typeSymbol: 'dsh-livedocs#json', schema: passthrough }
     const CONTRIBUTION = {
-      package: 'dsh-livedocs',
+      package: PACKAGE_NAME,
       descriptors: [
         {
-          id: 'dsh-livedocs#livedocs/listDocs',
+          id: `${PACKAGE_NAME}#livedocs/listDocs`,
           service: 'livedocsController',
           namespace: NS,
           method: 'listDocs',
@@ -42,7 +42,7 @@ window.__ModuleLoader__.load({
           result: { mode: 'src-json' },
         },
         {
-          id: 'dsh-livedocs#livedocs/removeDoc',
+          id: `${PACKAGE_NAME}#livedocs/removeDoc`,
           service: 'livedocsController',
           namespace: NS,
           method: 'removeDoc',
@@ -51,7 +51,7 @@ window.__ModuleLoader__.load({
           result: { mode: 'src-json' },
         },
         {
-          id: 'dsh-livedocs#livedocs/clearDocs',
+          id: `${PACKAGE_NAME}#livedocs/clearDocs`,
           service: 'livedocsController',
           namespace: NS,
           method: 'clearDocs',
@@ -60,7 +60,7 @@ window.__ModuleLoader__.load({
           result: { mode: 'src-json' },
         },
         {
-          id: 'dsh-livedocs#livedocs/checkUpdate',
+          id: `${PACKAGE_NAME}#livedocs/checkUpdate`,
           service: 'livedocsController',
           namespace: NS,
           method: 'checkUpdate',
@@ -72,8 +72,6 @@ window.__ModuleLoader__.load({
     }
 
     // ------------------------------------------------------------------ i18n
-    // Settings card language. The locale itself is a settings field (zh/en,
-    // default zh), so the card re-renders live when the user switches.
     const STRINGS = {
       zh: {
         cardDesc: '实时库文档：版本钉定、依赖注入、文档预热与自定义文档源',
@@ -174,8 +172,8 @@ window.__ModuleLoader__.load({
         customDocsVersion: 'Version (opt.)',
         add: 'Add',
         remove: 'Remove',
-        removeDocTitle: 'Remove custom doc source',
         removeDocBody: (name) => `Remove the doc source for ${name}?`,
+        removeDocTitle: 'Remove custom doc source',
         cacheTitle: 'Cached docs',
         clearAll: 'Clear all',
         view: 'View',
@@ -625,32 +623,20 @@ window.__ModuleLoader__.load({
     }
 
     // ----------------------------------------------------------------- card
-    function LivedocsCard(props) {
-      const [open, setOpen] = useState(false)
-      const { scope, remoteApi } = props
-      const snap = useSyncExternalStore(
-        (fn) => scope.subscribe(fn),
-        () => scope.getSnapshot(),
-      )
+    // Shared body used by both the 0.1.x settings-card and the 0.2.x plugin
+    // manager row-config page. It only knows how to render values and call
+    // `set(field, value)` / remote APIs; the wrapper supplies the data source.
+    function LivedocsCardBody(props) {
+      const { value, writable, status, set, remoteApi, t } = props
       const [error, setError] = useState(null)
       const [confirm, setConfirm] = useState(null) // { title, body, action } | null
 
-      if (snap.status === 'unavailable') {
-        return null // 本部署未组装该插件——不留痕迹（与官方卡片语义一致）
-      }
-      const value = snap.value ?? {}
-      const writable = snap.writable !== false
-      const locale = value.locale === 'en' ? 'en' : 'zh'
-      const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
-      const set = (field, next) => {
+      const safeSet = (field, next) => {
         setError(null)
-        // configForms.set resolves false when the Host refuses the write
-        // (validation, revision fencing); transport failures reject.
-        Promise.resolve(scope.set(field, next))
+        Promise.resolve(set(field, next))
           .then((ok) => { if (ok === false) setError(t('saveFailed')) })
           .catch((err) => setError(String(err?.message ?? err)))
       }
-      // Destructive actions must pass through the confirm dialog.
       const askConfirm = (title, body, action) => setConfirm({ title, body, action })
       const runConfirm = () => {
         const pending = confirm
@@ -660,102 +646,91 @@ window.__ModuleLoader__.load({
           .catch((err) => setError(String(err?.message ?? err)))
       }
 
-      return h('li', { style: css.card },
-        h('button', {
-          type: 'button', style: css.header, 'aria-expanded': open,
-          onClick: () => setOpen(!open),
-        },
-          h('span', { style: css.name }, 'Live Docs (dsh-livedocs)'),
-          h('span', { style: css.desc }, t('cardDesc')),
+      return h('div', { style: css.body },
+        !writable ? h('p', { style: css.error }, t('readOnly')) : null,
+        status !== 'ready' ? h('span', { style: css.note }, t('loading')) : null,
+        error ? h('p', { style: css.error }, `${t('saveFailed')}：${error}`) : null,
+        h('div', { style: css.row },
+          h('div', { style: css.label },
+            h('span', null, t('language')),
+            h('span', { style: css.labelHint }, t('languageHint')),
+          ),
+          h('select', {
+            style: { ...css.input, width: 110 },
+            value: value.locale === 'en' ? 'en' : 'zh',
+            disabled: !writable,
+            onChange: (e) => safeSet('locale', e.target.value),
+          },
+            h('option', { value: 'zh' }, '中文'),
+            h('option', { value: 'en' }, 'English'),
+          ),
         ),
-        open
-          ? h('div', { style: css.body },
-            !writable ? h('p', { style: css.error }, t('readOnly')) : null,
-            snap.status !== 'ready' ? h('span', { style: css.note }, t('loading')) : null,
-            error ? h('p', { style: css.error }, `${t('saveFailed')}：${error}`) : null,
-            h('div', { style: css.row },
-              h('div', { style: css.label },
-                h('span', null, t('language')),
-                h('span', { style: css.labelHint }, t('languageHint')),
-              ),
-              h('select', {
-                style: { ...css.input, width: 110 },
-                value: locale,
-                disabled: !writable,
-                onChange: (e) => set('locale', e.target.value),
-              },
-                h('option', { value: 'zh' }, '中文'),
-                h('option', { value: 'en' }, 'English'),
-              ),
+        h(Toggle, {
+          label: t('enabled'), hint: t('enabledHint'),
+          value: value.enabled !== false, disabled: !writable,
+          onChange: (v) => safeSet('enabled', v),
+        }),
+        h(Toggle, {
+          label: t('injectDeps'), hint: t('injectDepsHint'),
+          value: value.injectDeps !== false, disabled: !writable,
+          onChange: (v) => safeSet('injectDeps', v),
+        }),
+        h(Toggle, {
+          label: t('prefetch'), hint: t('prefetchHint'),
+          value: value.prefetch !== false, disabled: !writable,
+          onChange: (v) => safeSet('prefetch', v),
+        }),
+        h(Toggle, {
+          label: t('skill'), hint: t('skillHint'),
+          value: value.skill !== false, disabled: !writable,
+          onChange: (v) => safeSet('skill', v),
+        }),
+        h(NumberField, {
+          label: t('prefetchTopN'), hint: t('prefetchTopNHint'),
+          value: value.prefetchTopN ?? 3, min: 0, max: 10, disabled: !writable,
+          onChange: (v) => safeSet('prefetchTopN', v),
+        }),
+        h(NumberField, {
+          label: t('cacheTtl'), hint: t('cacheTtlHint'),
+          value: value.cacheTtlDays ?? 7, min: 1, max: 90, disabled: !writable,
+          onChange: (v) => safeSet('cacheTtlDays', v),
+        }),
+        h(NumberField, {
+          label: t('cacheMax'), hint: t('cacheMaxHint'),
+          value: value.cacheMaxEntries ?? 200, min: 1, max: 1000, disabled: !writable,
+          onChange: (v) => safeSet('cacheMaxEntries', v),
+        }),
+        h(KeyField, {
+          label: t('context7'),
+          help: h(HelpTip, { 'aria-label': t('help') },
+            h('span', null, t('c7what')),
+            h('span', null, t('c7how')),
+            h('span', null,
+              t('c7site'),
+              h('a', { href: 'https://context7.com', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com'),
             ),
-            h(Toggle, {
-              label: t('enabled'), hint: t('enabledHint'),
-              value: value.enabled !== false, disabled: !writable,
-              onChange: (v) => set('enabled', v),
-            }),
-            h(Toggle, {
-              label: t('injectDeps'), hint: t('injectDepsHint'),
-              value: value.injectDeps !== false, disabled: !writable,
-              onChange: (v) => set('injectDeps', v),
-            }),
-            h(Toggle, {
-              label: t('prefetch'), hint: t('prefetchHint'),
-              value: value.prefetch !== false, disabled: !writable,
-              onChange: (v) => set('prefetch', v),
-            }),
-            h(Toggle, {
-              label: t('skill'), hint: t('skillHint'),
-              value: value.skill !== false, disabled: !writable,
-              onChange: (v) => set('skill', v),
-            }),
-            h(NumberField, {
-              label: t('prefetchTopN'), hint: t('prefetchTopNHint'),
-              value: value.prefetchTopN ?? 3, min: 0, max: 10, disabled: !writable,
-              onChange: (v) => set('prefetchTopN', v),
-            }),
-            h(NumberField, {
-              label: t('cacheTtl'), hint: t('cacheTtlHint'),
-              value: value.cacheTtlDays ?? 7, min: 1, max: 90, disabled: !writable,
-              onChange: (v) => set('cacheTtlDays', v),
-            }),
-            h(NumberField, {
-              label: t('cacheMax'), hint: t('cacheMaxHint'),
-              value: value.cacheMaxEntries ?? 200, min: 1, max: 1000, disabled: !writable,
-              onChange: (v) => set('cacheMaxEntries', v),
-            }),
-            h(KeyField, {
-              label: t('context7'),
-              help: h(HelpTip, { 'aria-label': t('help') },
-                h('span', null, t('c7what')),
-                h('span', null, t('c7how')),
-                h('span', null,
-                  t('c7site'),
-                  h('a', { href: 'https://context7.com', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com'),
-                ),
-                h('span', null,
-                  t('c7keys'),
-                  h('a', { href: 'https://context7.com/docs/howto/api-keys', target: '_blank', rel: 'noreferrer', style: css.helpLink }, t('c7keysDoc')),
-                ),
-                h('span', null,
-                  t('c7dash'),
-                  h('a', { href: 'https://context7.com/dashboard', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com/dashboard'),
-                ),
-              ),
-              hint: value.context7Key?.trim() ? t('context7HintOn') : t('context7HintOff'),
-              value: value.context7Key ?? '', disabled: !writable,
-              onChange: (v) => set('context7Key', v),
-            }),
-            h(CustomDocs, {
-              value: value.customDocs,
-              onChange: (v) => set('customDocs', v),
-              confirm: askConfirm,
-              t,
-            }),
-            h(UpdatePanel, { remoteApi, t }),
-            h(CachePanel, { remoteApi, confirm: askConfirm, t }),
-            h('span', { style: css.note }, t('projectNote')),
-          )
-          : null,
+            h('span', null,
+              t('c7keys'),
+              h('a', { href: 'https://context7.com/docs/howto/api-keys', target: '_blank', rel: 'noreferrer', style: css.helpLink }, t('c7keysDoc')),
+            ),
+            h('span', null,
+              t('c7dash'),
+              h('a', { href: 'https://context7.com/dashboard', target: '_blank', rel: 'noreferrer', style: css.helpLink }, 'context7.com/dashboard'),
+            ),
+          ),
+          hint: value.context7Key?.trim() ? t('context7HintOn') : t('context7HintOff'),
+          value: value.context7Key ?? '', disabled: !writable,
+          onChange: (v) => safeSet('context7Key', v),
+        }),
+        h(CustomDocs, {
+          value: value.customDocs,
+          onChange: (v) => safeSet('customDocs', v),
+          confirm: askConfirm,
+          t,
+        }),
+        h(UpdatePanel, { remoteApi, t }),
+        h(CachePanel, { remoteApi, confirm: askConfirm, t }),
+        h('span', { style: css.note }, t('projectNote')),
         confirm
           ? h(ConfirmDialog, {
             title: confirm.title,
@@ -769,14 +744,76 @@ window.__ModuleLoader__.load({
       )
     }
 
-    // ---------------------------------------------------------------- apply
-    exports.inject = ['slots', 'configForms', 'remote']
-    exports.apply = function apply(ctx) {
-      // The settings entry whose schema the Host plugin exports as Config.
-      // getSnapshot()/subscribe()/set()/unset() — set() resolves false when
-      // the Host refuses a write instead of throwing.
-      const form = ctx.configForms.get(NS)
+    // 0.1.x settings-card wrapper (settingsScope + settings.plugin.item slot).
+    function LivedocsCard(props) {
+      const [open, setOpen] = useState(false)
+      const { scope, remoteApi } = props
+      const snap = useSyncExternalStore(
+        (fn) => scope.subscribe(fn),
+        () => scope.getSnapshot(),
+      )
+      if (snap.status === 'unavailable') return null
+      const value = snap.value ?? {}
+      const locale = value.locale === 'en' ? 'en' : 'zh'
+      const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
+      return h('li', { style: css.card },
+        h('button', {
+          type: 'button', style: css.header, 'aria-expanded': open,
+          onClick: () => setOpen(!open),
+        },
+          h('span', { style: css.name }, 'Live Docs (dsh-livedocs)'),
+          h('span', { style: css.desc }, t('cardDesc')),
+        ),
+        open
+          ? h(LivedocsCardBody, {
+            value,
+            writable: snap.writable !== false,
+            status: snap.status,
+            set: (field, next) => scope.set(field, next),
+            remoteApi,
+            t,
+          })
+          : null,
+      )
+    }
 
+    // 0.2.x plugin-manager row-config wrapper (configForms + plugins.row.config slot).
+    function LivedocsRowConfig(props) {
+      const { view, form, remoteApi } = props
+      if (view === 'summary') {
+        // The row detail already shows title/description from locale metadata;
+        // summary is only a fallback when no description is available.
+        return h('span', null, STRINGS.zh.cardDesc)
+      }
+      if (!form) {
+        return h('span', { style: css.note }, STRINGS.zh.remoteDown)
+      }
+      const snap = useSyncExternalStore(
+        (fn) => form.subscribe(fn),
+        () => form.getSnapshot(),
+      )
+      const value = snap.value ?? {}
+      const locale = value.locale === 'en' ? 'en' : 'zh'
+      const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
+      const set = (field, next) => {
+        const revision = snap.revision
+        return form.mutate([{ op: 'set', path: [field], value: next }], revision).then((ok) => {
+          if (!ok) throw new Error('conflict')
+        })
+      }
+      return h(LivedocsCardBody, {
+        value,
+        writable: snap.writable !== false,
+        status: snap.status,
+        set,
+        remoteApi,
+        t,
+      })
+    }
+
+    // ---------------------------------------------------------------- apply
+    exports.inject = ['slots', 'remote']
+    exports.apply = function apply(ctx) {
       // Mount the hand-written contribution so the card can reach the Host
       // cache. Lifetime follows this fiber; failure just hides remote actions.
       let remoteReady = false
@@ -800,9 +837,6 @@ window.__ModuleLoader__.load({
         }
       }, 'dsh-livedocs: remote mount')
 
-      // Remote namespace methods resolve to a RemoteResult envelope
-      // ({ok: true, value} | {ok: false, error}) — callers must unwrap it
-      // themselves; the namespace service never throws business failures.
       const unwrap = async (call) => {
         const result = await call
         if (!result || result.ok !== true) {
@@ -818,20 +852,30 @@ window.__ModuleLoader__.load({
         checkUpdate: () => unwrap(ctx.get('remote.livedocs').checkUpdate()),
       }
 
-      // Register into the Plugins page's `plugins.item` slot only while the
-      // Host actually serves our namespace — a deployment that never composed
-      // the plugin shows no trace of the card.
-      ctx.effect(() =>
-        ctx.configForms.whileServed([NS], () =>
-          ctx.slots.inject('plugins.item', () => ctx.slots.register({
-            name: 'plugins.item',
-            id: NS,
-            order: 30,
-            label: () => 'Live Docs (dsh-livedocs)',
-            inject: () => ({ scope: form, remoteApi }),
-          }, LivedocsCard)),
-        ),
-      'dsh-livedocs: settings card')
+      // 0.1.x path: only activates on hosts that still provide settingsScope.
+      ctx.inject?.(['settingsScope'], (c) => {
+        const scope = c.settingsScope.bind({ namespace: NS })
+        ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
+          name: 'settings.plugin.item',
+          key: NS,
+          inject: () => ({ scope, remoteApi }),
+        }, LivedocsCard))
+      })
+
+      // 0.2.x path: the Plugins page serves the `livedocs` namespace through
+      // configForms; we register a row-config page keyed by the cordis row id.
+      ctx.inject?.(['configForms'], (c) => {
+        const form = c.configForms.get(NS)
+        ctx.effect(() =>
+          c.configForms.whileServed([NS], () =>
+            ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
+              name: 'plugins.row.config',
+              key: ROW_KEY,
+              inject: () => ({ remoteApi }),
+            }, LivedocsRowConfig)),
+          ),
+        'dsh-livedocs: row config')
+      })
     }
 
     return module.exports
