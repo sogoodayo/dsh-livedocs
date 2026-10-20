@@ -36,7 +36,8 @@
   "bugs": "https://github.com/sogoodayo/dsh-livedocs/issues",
   "homepage": "https://github.com/sogoodayo/dsh-livedocs#readme",
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "dsh": ">=0.2.0-rc.1 <0.3.0"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0"

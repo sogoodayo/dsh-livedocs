@@ -3,6 +3,12 @@
 All notable changes to dsh-livedocs. Format follows [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/);
 versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 
+## [0.2.2] - 2026-10-20
+
+### Changed
+
+- 适配 DSH 0.2.1-rc.1+ 插件兼容性检查新契约：在 `package.json` 的 `engines` 中声明 `dsh: ">=0.2.0-rc.1 <0.3.0"`（该字段优先于 `peerDependencies` 被 Host 读取），同时保留 `peerDependencies` 作兼容回退。
+
 ## [0.2.1] - 2026-10-20
 
 ### Fixed
@@ -105,6 +111,7 @@ versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 - remote 命名空间 RemoteResult 信封解包；缓存存储避开 proxy #private 字段；
   拒绝把 HTML 页面当文档；仓库 URL 去掉 fragment
 
+[0.2.2]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.8...v0.1.9

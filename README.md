@@ -102,7 +102,8 @@ Never rely on training data for framework APIs (Next.js, React, Vue, etc.).
 
 ## 兼容性
 
-要求 **DSH ≥ 0.2.0-rc.1**（`peerDependencies` 声明，安装与启动时校验）。0.2.x 移除了客户端 `settingsScope` 服务：本插件 0.2.0 起改为导出 `Config` schema + `configForms` 契约，**不再兼容 0.1.x**；0.1.x 用户请停留在 dsh-livedocs 0.1.9。
+要求 **DSH ≥ 0.2.0-rc.1**（`package.json` 中 `engines.dsh` 声明 `"\>=0.2.0-rc.1 <0.3.0"`，0.2.1-rc.1+ Host 优先按此字段校验；同时保留 `peerDependencies` 作向后兼容）。
+0.2.x 移除了客户端 `settingsScope` 服务：本插件 0.2.0 起改为导出 `Config` schema + `configForms` 契约，**不再兼容 0.1.x**；0.1.x 用户请停留在 dsh-livedocs 0.1.9。
 
 设计与调研依据见 [docs/feasibility.md](docs/feasibility.md)。
 
