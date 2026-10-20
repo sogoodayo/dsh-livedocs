@@ -1,6 +1,6 @@
 {
   "name": "dsh-livedocs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Version-pinned live library docs for DeepSeek Harness — kill hallucinated APIs.",
   "type": "module",
   "main": "index.js",
