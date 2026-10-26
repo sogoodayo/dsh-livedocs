@@ -100,8 +100,18 @@ export function apply(ctx, config) {
     try {
       selfVersion = JSON.parse(readFileSync(join(pluginDir, 'package.json'), 'utf8')).version ?? selfVersion
     } catch { /* dev check falls back to the placeholder */ }
-    // eslint-disable-next-line no-new
-    new LivedocsController(ctx, { cache, selfVersion })
+    // Plain service + reflect.provide: the gateway's SRC discovery scans
+    // reflect services, so late-loaded plugins are picked up (same pattern as
+    // dsh-code-ui, verified on 0.1.x and 0.2.x hosts).
+    const controller = new LivedocsController({
+      cache,
+      selfVersion,
+      getConfig: () => configProvider.get(),
+      getBacked: () => configProvider.backed(),
+      setConfig: (patch) => configProvider.set(patch),
+    })
+    const disposeRemote = ctx.root?.reflect?.provide?.('livedocs', controller)
+    ctx.on?.('dispose', () => disposeRemote?.())
   } catch (err) {
     ctx.logger?.warn?.(`dsh-livedocs: remote service unavailable: ${err?.message ?? err}`)
   }

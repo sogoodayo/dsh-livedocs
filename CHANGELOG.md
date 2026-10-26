@@ -3,6 +3,21 @@
 All notable changes to dsh-livedocs. Format follows [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/);
 versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 
+## [0.2.3] - 2026-10-26
+
+### Fixed
+
+- 卡片/Host 通信通道重写：Typert `$mount` + `remote.livedocs` 命名空间在 0.2.x 上调用挂起，
+  改为 `connection.rpc`（`/api/livedocs/*`）+ `ctx.root.reflect.provide` 注册（dsh-code-ui 同款已验证模式，
+  两代 Host 通吃）；修复 0.2.x 插件管理页卡片加载后 remote 不可用的问题。
+- `setConfig`/`removeDoc` 参数名改为 `args`，匹配 connection.rpc 的 `{ args }` 包装约定。
+- 配置读写改为官方双路径：0.2.x 读 `apply(ctx, config)` 的 volatile 引用并监听
+  `loader/volatile-update` + `settings/document-updated`；写统一走 `settings.update(ns, patch)`
+  （两代签名一致）；0.1.x 仍走 `settings.register` + `scope.watch`。
+- `Config` schema 改为逐字段 `maybeVolatile`（0.2.x 插件页命名空间可见性条件），
+  避免旧版 schemastery 3.18.2 对整对象 `.volatile()` 丢默认值的缺陷。
+- 已实测于 DSH 0.2.1-rc.3：卡片渲染、字段写入、语言切换即时生效均正常。
+
 ## [0.2.2] - 2026-10-20
 
 ### Changed
@@ -111,6 +126,7 @@ versioning follows [SemVer](https://semver.org/lang/zh-CN/).
 - remote 命名空间 RemoteResult 信封解包；缓存存储避开 proxy #private 字段；
   拒绝把 HTML 页面当文档；仓库 URL 去掉 fragment
 
+[0.2.3]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/sogoodayo/dsh-livedocs/compare/v0.1.9...v0.2.0

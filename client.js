@@ -22,54 +22,10 @@ window.__ModuleLoader__.load({
 
     const NS = 'livedocs'
     const PACKAGE_NAME = 'dsh-livedocs'
-    const ROW_KEY = `${PACKAGE_NAME}#${NS}`
 
-    // ---- hand-written Typert contribution (client half of lib/remote.js) ----
-    // The client gateway requires strict codecs on parameters and calls only
-    // schema.parse(); a passthrough schema keeps the wire JSON untouched.
-    const passthrough = { parse: (value) => value }
-    const jsonCodec = { mode: 'strict', typeSymbol: 'dsh-livedocs#json', schema: passthrough }
-    const CONTRIBUTION = {
-      package: PACKAGE_NAME,
-      descriptors: [
-        {
-          id: `${PACKAGE_NAME}#livedocs/listDocs`,
-          service: 'livedocsController',
-          namespace: NS,
-          method: 'listDocs',
-          invocation: { kind: 'direct' },
-          parameters: [],
-          result: { mode: 'src-json' },
-        },
-        {
-          id: `${PACKAGE_NAME}#livedocs/removeDoc`,
-          service: 'livedocsController',
-          namespace: NS,
-          method: 'removeDoc',
-          invocation: { kind: 'direct' },
-          parameters: [{ name: 'key', wire: 'key', source: 'json', codec: jsonCodec }],
-          result: { mode: 'src-json' },
-        },
-        {
-          id: `${PACKAGE_NAME}#livedocs/clearDocs`,
-          service: 'livedocsController',
-          namespace: NS,
-          method: 'clearDocs',
-          invocation: { kind: 'direct' },
-          parameters: [],
-          result: { mode: 'src-json' },
-        },
-        {
-          id: `${PACKAGE_NAME}#livedocs/checkUpdate`,
-          service: 'livedocsController',
-          namespace: NS,
-          method: 'checkUpdate',
-          invocation: { kind: 'direct' },
-          parameters: [],
-          result: { mode: 'src-json' },
-        },
-      ],
-    }
+    // ---- host channel: connection.rpc over /api (dsh-code-ui pattern) ----
+    // Works on both 0.1.x and 0.2.x hosts; no Typert codegen needed.
+    // Endpoints: 'livedocs/<method>' answered by lib/remote.js.
 
     // ------------------------------------------------------------------ i18n
     const STRINGS = {
@@ -777,34 +733,46 @@ window.__ModuleLoader__.load({
       )
     }
 
-    // 0.2.x plugin-manager row-config wrapper (configForms + plugins.row.config slot).
-    function LivedocsRowConfig(props) {
-      const { view, form, remoteApi } = props
-      if (view === 'summary') {
-        // The row detail already shows title/description from locale metadata;
-        // summary is only a fallback when no description is available.
-        return h('span', null, STRINGS.zh.cardDesc)
+    // 0.2.x plugin-manager bundle-config wrapper (plugins.bundle.config slot,
+    // self-managed config over the livedocs remote — no form prop is supplied).
+    function LivedocsBundleConfig(props) {
+      const { view, remoteApi } = props
+      const [state, setState] = useState({ phase: 'idle', value: null, error: null })
+      const load = async () => {
+        if (!remoteApi.ready()) {
+          setState({ phase: 'error', value: null, error: STRINGS.zh.remoteDown })
+          return
+        }
+        setState((s) => ({ ...s, phase: 'loading' }))
+        try {
+          const result = await remoteApi.getConfig()
+          if (result?.error) throw new Error(result.error)
+          setState({ phase: 'ready', value: result?.config ?? {}, error: null })
+        } catch (err) {
+          setState({ phase: 'error', value: null, error: String(err?.message ?? err) })
+        }
       }
-      if (!form) {
-        return h('span', { style: css.note }, STRINGS.zh.remoteDown)
-      }
-      const snap = useSyncExternalStore(
-        (fn) => form.subscribe(fn),
-        () => form.getSnapshot(),
-      )
-      const value = snap.value ?? {}
+      // Load on first render of the page view.
+      React.useEffect(() => { if (view !== 'summary' && state.phase === 'idle') void load() }, [view, state.phase])
+      if (view === 'summary') return h('span', null, STRINGS.zh.cardDesc)
+      const value = state.value ?? {}
       const locale = value.locale === 'en' ? 'en' : 'zh'
       const t = (key) => STRINGS[locale][key] ?? STRINGS.zh[key] ?? key
-      const set = (field, next) => {
-        const revision = snap.revision
-        return form.mutate([{ op: 'set', path: [field], value: next }], revision).then((ok) => {
-          if (!ok) throw new Error('conflict')
-        })
+      const set = async (field, next) => {
+        const result = await remoteApi.setConfig({ [field]: next })
+        if (result?.error) throw new Error(result.error)
+        if (result?.config) setState({ phase: 'ready', value: result.config, error: null })
+      }
+      if (state.phase === 'idle' || state.phase === 'loading') {
+        return h('span', { style: css.note }, t('loading'))
+      }
+      if (state.phase === 'error') {
+        return h('span', { style: css.error }, state.error ?? t('remoteDown'))
       }
       return h(LivedocsCardBody, {
         value,
-        writable: snap.writable !== false,
-        status: snap.status,
+        writable: true,
+        status: 'ready',
         set,
         remoteApi,
         t,
@@ -812,44 +780,33 @@ window.__ModuleLoader__.load({
     }
 
     // ---------------------------------------------------------------- apply
-    exports.inject = ['slots', 'remote']
+    exports.inject = ['slots', 'connection']
     exports.apply = function apply(ctx) {
-      // Mount the hand-written contribution so the card can reach the Host
-      // cache. Lifetime follows this fiber; failure just hides remote actions.
-      let remoteReady = false
-      ctx.effect(() => {
-        let disposed = false
-        let unmount = null
-        Promise.resolve(ctx.remote.$mount(CONTRIBUTION))
-          .then((dispose) => {
-            if (disposed) {
-              void dispose()
-              return
+      // Host channel: connection.rpc over /api — envelope is
+      // {ok: true, value} | {ok: false, error}. (dsh-code-ui pattern; works on
+      // both 0.1.x and 0.2.x hosts, no Typert codegen or $mount needed.)
+      const rpc = ctx.get?.('connection')?.rpc
+      const callHost = (endpoint, payload) => {
+        if (!rpc) return Promise.resolve({ error: STRINGS.zh.remoteDown })
+        return rpc.call('/api', `${NS}/${endpoint}`, { args: payload === undefined ? {} : { args: payload } })
+          .then((res) => {
+            if (!res || typeof res !== 'object') return { error: 'RPC 返回异常' }
+            if (res.ok === false) {
+              const e = res.error || {}
+              return { error: e.message || e.code || 'RPC 调用失败' }
             }
-            unmount = dispose
-            remoteReady = true
+            return res.value == null ? {} : res.value
           })
-          .catch(() => { remoteReady = false })
-        return () => {
-          disposed = true
-          remoteReady = false
-          if (unmount) void unmount()
-        }
-      }, 'dsh-livedocs: remote mount')
-
-      const unwrap = async (call) => {
-        const result = await call
-        if (!result || result.ok !== true) {
-          throw new Error(result?.error?.message ?? 'remote call failed')
-        }
-        return result.value
+          .catch((err) => ({ error: String(err?.message ?? err) }))
       }
       const remoteApi = {
-        ready: () => remoteReady && !!ctx.get('remote.livedocs'),
-        list: () => unwrap(ctx.get('remote.livedocs').listDocs()),
-        remove: (key) => unwrap(ctx.get('remote.livedocs').removeDoc(key)),
-        clear: () => unwrap(ctx.get('remote.livedocs').clearDocs()),
-        checkUpdate: () => unwrap(ctx.get('remote.livedocs').checkUpdate()),
+        ready: () => !!rpc,
+        list: () => callHost('listDocs'),
+        remove: (key) => callHost('removeDoc', { key }),
+        clear: () => callHost('clearDocs'),
+        checkUpdate: () => callHost('checkUpdate'),
+        getConfig: () => callHost('getConfig'),
+        setConfig: (patch) => callHost('setConfig', patch),
       }
 
       // 0.1.x path: only activates on hosts that still provide settingsScope.
@@ -862,20 +819,19 @@ window.__ModuleLoader__.load({
         }, LivedocsCard))
       })
 
-      // 0.2.x path: the Plugins page serves the `livedocs` namespace through
-      // configForms; we register a row-config page keyed by the cordis row id.
-      ctx.inject?.(['configForms'], (c) => {
-        const form = c.configForms.get(NS)
-        ctx.effect(() =>
-          c.configForms.whileServed([NS], () =>
-            ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
-              name: 'plugins.row.config',
-              key: ROW_KEY,
-              inject: () => ({ remoteApi }),
-            }, LivedocsRowConfig)),
-          ),
-        'dsh-livedocs: row config')
-      })
+      // 0.2.x path: register a bundle-config page keyed by the package name.
+      // The slot lives only while the plugin-manager page entry is mounted;
+      // slots.inject defers our registration until it exists (older hosts
+      // simply never run it). No configForms gate: the settings mirror does
+      // not serve community namespaces on some 0.2.x builds, and our card is
+      // fully self-sufficient over connection.rpc.
+      if (typeof ctx.slots?.inject === 'function') {
+        ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+          name: 'plugins.bundle.config',
+          key: PACKAGE_NAME,
+          inject: () => ({ remoteApi }),
+        }, LivedocsBundleConfig))
+      }
     }
 
     return module.exports
